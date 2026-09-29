@@ -1,0 +1,11 @@
+.DS_Store
+# XcodeGen writes the project from project.yml; don't commit it.
+*.xcodeproj
+xcuserdata/
+*.xcuserstate
+.build/
+.swiftpm/
+DerivedData/
+build/
+__pycache__/
+*.pyc
