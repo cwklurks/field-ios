@@ -146,3 +146,39 @@ Almost, but not yet. This round fixed every blocker from polish-2 (the Welcome k
 - **Letting go of a half-dragged keyboard (P3-02)** makes the keyboard blink out and leaves the bar hanging, then falling. Messages shows it isn't the system's doing.
 
 Add a possibly dead Done after a swipe-up (P3-03, which needs a hand repro), and I'd hold the phone build for one more short round on those three. Then send it, with P3-04 to P3-07 left for later.
+
+## Round 4 check
+
+Checked 2026-09-29, late evening, on 4d27950 (FieldPerf, Release, iPhone 17 simulator, headless). This was a targeted pass, not a full review:
+- 22 recordings in `critic/r4/`, plus two extra runs of `testCancelSwipe` in glass light;
+- strips in `critic/R4-*.png`;
+- `critic/gaps.sh` now reads best-effort timestamps.
+
+| Item | Status | Evidence |
+|---|---|---|
+| P3-01 card close | **fixed** | Every card moves whole, on one spring. Cards changing rows ride over the rest. There are no copies and no dimming, in light and dark (`R4-card-swipe-glass-light.png` 1700–1717, `R4-card-x-glass-light.png` 1837–1854, `R4-card-x-glass-dark.png`). The only fade is the closed card's own. |
+| P3-02 half-drag held, then let go | **fixed** in 3 of 4 runs | After the lift, the keyboard slides down over about 7 frames with the bar on its top edge, as in Messages. <br>• Solid dark: 1653–1658 (`R4-swipe-partial-release-solid-dark.png`). <br>• Glass light, two re-runs: 1643–1650 and 1905–1912 (`R4-swipe-partial-release-glass-light-run2.png`, `…-run3.png`). |
+| P3-02 flick down | **fixed** | The field and keyboard follow the finger, and the keyboard carries on down with the bar riding it (`R4-flick-glass-light.png`, `R4-flick-solid-dark.png`). |
+| P3-02 short drag let go while moving | **partly** | The keyboard slides for 4–5 frames, then its remaining lower half disappears in one frame. The bar keeps gliding down for another 3 frames. The recorder had dense frames here, so it is real. <br>• Glass light: 1588 → 1589 (`R4-flick-short-glass-light.png`). <br>• Solid dark: 1533 → 1534 (`R4-flick-short-solid-dark.png`). <br>Minor: the end of a fast gesture. |
+| P3-05 drag back up | **fixed** | The selected URL and the magnifier are back while the finger is still down (1160, with the lift at 1173), so nothing changes on the lift (`R4-swipe-back-glass-light.png`). |
+| P3-06 grid row under Settings | **fixed** | The row stays under the sheet and is already there as the sheet leaves, on Done (1621) and on a swipe (2068) (`R4-settings-done-row.png`, `R4-settings-dismiss-row.png`). |
+| P1-15 new tab | **mostly fixed** | The card labels are gone from under the field. The field still appears over the fading grid about 6 frames before the blank page covers it (1973–1980, `R4-grid-new-zoom-glass-light.png`). Minor. |
+| P3-07 dark glass | **fixed** | The page's text no longer reads through the bar behind the address (`R4-bar-glass-dark-zoom.png`). |
+| P3-03 Done after swipe-up | **not reproduced** | All four taps landed in `testBarSwipeUp`. The slow drag now answers 2 frames after touch-down, where it took 9. |
+
+**Core loop (glass light and solid dark): no regressions.**
+- Tap: L+1 into the field shape.
+- Go and cancel with rows: fold on the first frame, then ride the keyboard (`R4-go-solid-dark.png`, `R4-cancel-rows-glass-light.png`).
+- Cancel by tap: L+1 or L+2.
+- Scroll and flicks: 1:1, settling with the finger's velocity.
+- Bar swipes: tracking and settling as before.
+- Cold blank launch: the field is on the first app frame and the keyboard comes about 10 frames later (`R4-cold-blank-*.png`). From launch zoom to app took 185 frames, the same as round 3.
+
+**One new intermittent: P4-01 · minor-to-major · a half-drag that ends early closes in one frame.** In 1 of 3 glass-light runs (`critic/r4/testCancelSwipe-glass-light-run1.mp4`), the drag's touch ended about halfway (the ring is gone at y ≈ 538 pt at 1957, not 629). On the next frame (1958) the keyboard, the field and the dim were all gone, with the bar already at rest (`R4-swipe-partial-release-zoom-glass-light.png`). It looks like a cancelled or early-ended touch taking a close path with no animation. It may be a driver hiccup, but the snap itself is the app's. Worth one look at how the new scrub handles `.cancelled` or `touchesCancelled`.
+
+**Ready for the user's phone for a day? Yes.** Every major from this review is fixed on video. What's left is short and fast:
+- the keyboard's last half snapping at the end of a quick release;
+- the intermittent early-end snap;
+- the field arriving a few frames before a new tab's page.
+
+The phone's own keyboard timing is the right place to judge the first two. Ask the user to watch for any keyboard that "blinks away".
