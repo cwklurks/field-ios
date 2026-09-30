@@ -121,6 +121,28 @@ final class CriticTour: XCTestCase {
         try await pause(2)
     }
 
+    /// 3b: a drag into the keyboard that turns back up before the lift,
+    /// which UIKit answers by bringing the keyboard back; then a tap outside.
+    @MainActor func testCancelSwipeBack() async throws {
+        let app = launch([], open: server.url("/article"))
+        let address = try app.required("bar.address", timeout: 10)
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(2.5)
+        address.tap()
+        try await pause(1.5)
+        let size = app.frame.size
+        let x = size.width / 2
+        try await Path.drag([
+            (CGPoint(x: x, y: size.height * 0.35), 0),
+            (CGPoint(x: x, y: size.height * 0.80), 1.2),
+            (CGPoint(x: x, y: size.height * 0.80), 1.5),
+            (CGPoint(x: x, y: size.height * 0.45), 2.0),
+        ])
+        try await pause(2)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        try await pause(2)
+    }
+
     /// 4: a slow drag up and down, then flicks.
     @MainActor func testScroll() async throws {
         let app = launch([], open: server.url("/article"))
@@ -250,7 +272,7 @@ final class CriticTour: XCTestCase {
         try await pause(1.2)
         app.buttons["Light"].firstMatch.tap()
         try await pause(1.2)
-        app.buttons["Done"].firstMatch.tap()
+        app.buttons["settings.done"].tap()
         try await pause(2)
         // Closing Settings left the grid up.
         _ = gear.waitForExistence(timeout: 2)
@@ -278,6 +300,50 @@ final class CriticTour: XCTestCase {
         try await pause(1.5)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
         try await pause(2)
+    }
+}
+
+/// A one-finger drag through several points, which XCUICoordinate can't
+/// do: XCTest's own event records, reached by name. For the recordings only.
+@MainActor enum Path {
+    /// Points in the screen's points, each with its time from the touch.
+    static func drag(_ points: [(CGPoint, Double)]) async throws {
+        guard let first = points.first,
+              let pathType = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
+              let recordType = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type else {
+            throw XCTSkip("no event records")
+        }
+        typealias Start = @convention(c) (AnyObject, Selector, CGPoint, Double) -> AnyObject
+        typealias Move = @convention(c) (AnyObject, Selector, CGPoint, Double) -> Void
+        typealias Lift = @convention(c) (AnyObject, Selector, Double) -> Void
+        typealias Named = @convention(c) (AnyObject, Selector, NSString, Int64) -> AnyObject
+        typealias Add = @convention(c) (AnyObject, Selector, AnyObject) -> Void
+        func imp<T>(_ type: AnyClass, _ name: String, as: T.Type) -> (T, Selector) {
+            let selector = NSSelectorFromString(name)
+            return (unsafeBitCast(class_getMethodImplementation(type, selector), to: T.self), selector)
+        }
+        func alloc(_ type: AnyClass) -> AnyObject {
+            (type as AnyObject).perform(NSSelectorFromString("alloc")).takeRetainedValue()
+        }
+        let (start, startSel) = imp(pathType, "initForTouchAtPoint:offset:", as: Start.self)
+        let (move, moveSel) = imp(pathType, "moveToPoint:atOffset:", as: Move.self)
+        let (lift, liftSel) = imp(pathType, "liftUpAtOffset:", as: Lift.self)
+        let path = start(alloc(pathType), startSel, first.0, first.1)
+        for (point, time) in points.dropFirst() { move(path, moveSel, point, time) }
+        lift(path, liftSel, points.last!.1 + 0.02)
+        let (named, namedSel) = imp(recordType, "initWithName:interfaceOrientation:", as: Named.self)
+        let (add, addSel) = imp(recordType, "addPointerEventPath:", as: Add.self)
+        let record = named(alloc(recordType), namedSel, "drag" as NSString, 1)
+        add(record, addSel, path)
+        guard let synthesizer = XCUIDevice.shared.perform(NSSelectorFromString("eventSynthesizer"))?.takeUnretainedValue() else {
+            throw XCTSkip("no synthesizer")
+        }
+        typealias Done = @convention(block) @Sendable (Bool, NSError?) -> Void
+        typealias Synthesize = @convention(c) (AnyObject, Selector, AnyObject, @escaping Done) -> Void
+        let (synthesize, synthesizeSel) = imp(type(of: synthesizer), "synthesizeEvent:completion:", as: Synthesize.self)
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            synthesize(synthesizer, synthesizeSel, record, { @Sendable _, _ in done.resume() })
+        }
     }
 }
 

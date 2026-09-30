@@ -21,6 +21,16 @@ import Testing
         #expect(browser.tab.web == nil)
     }
 
+    @Test func continueOnTheWelcomeKeepsTheFieldUnseenUntilTheKeyboard() {
+        let browser = Browser(restoring: false)
+        #expect(!browser.fieldBehindWelcome)
+        browser.leaveWelcome()
+        #expect(browser.fieldBehindWelcome)
+        #expect(!browser.fieldOpen)
+        browser.start()
+        #expect(browser.fieldOpen)
+    }
+
     @Test func goingSomewhereBuildsTheWebView() {
         let browser = Browser(restoring: false)
         browser.start()

@@ -82,12 +82,37 @@ struct GridLayoutTests {
     }
 
     /// Only a card going from the start of a row to the end of the one above
-    /// crosses another; it passes behind.
+    /// changes row.
     @Test func aCardWrapsWhenItChangesRow() {
         #expect(GridLayout.wraps(from: 6, to: 5))
         #expect(GridLayout.wraps(from: 5, to: 6))
         #expect(!GridLayout.wraps(from: 5, to: 4))
         #expect(!GridLayout.wraps(from: 7, to: 6))
         #expect(!GridLayout.wraps(from: 3, to: 3))
+    }
+
+    /// After a close the cards after it move back one place, and after a
+    /// reopen on one. Those staying on their row slide along it; those
+    /// changing row hop, fading out of one place and into the other, so no
+    /// card passes through another. A card new to the list grows in.
+    @Test func cardsSlideAlongTheirRowOrHopToAnother() {
+        #expect(GridLayout.move(from: 2, to: 2) == .stay)
+        // Closed at 1.
+        #expect(GridLayout.move(from: 3, to: 2) == .slide)
+        #expect(GridLayout.move(from: 4, to: 3) == .hop)
+        #expect(GridLayout.move(from: 5, to: 4) == .slide)
+        // Reopened at 1.
+        #expect(GridLayout.move(from: 1, to: 2) == .hop)
+        #expect(GridLayout.move(from: 2, to: 3) == .slide)
+        #expect(GridLayout.move(from: nil, to: 1) == .arrive)
+    }
+
+    /// A slide never leaves its row, so it only ever moves sideways.
+    @Test func aSlideStaysOnItsRow() {
+        for from in 0..<12 {
+            for to in [from - 1, from + 1] where to >= 0 && GridLayout.move(from: from, to: to) == .slide {
+                #expect(layout.picture(from).minY == layout.picture(to).minY)
+            }
+        }
     }
 }

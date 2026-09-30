@@ -19,6 +19,8 @@ import UniformTypeIdentifiers
     let directory: URL?
     private let memory = NSCache<NSUUID, UIImage>()
     private var loading: [UUID: Task<UIImage?, Never>] = [:]
+    /// The launch's picture on its way (see prefetch).
+    private var early: (id: UUID, arrival: Arrival)?
 
     init(directory: URL?) {
         self.directory = directory
@@ -42,6 +44,43 @@ import UniformTypeIdentifiers
         let image = await task.value
         loading[id] = nil
         if let image { keep(image, id) }
+        return image
+    }
+
+    /// Starts reading `id`'s picture off the main thread: the tab on screen
+    /// at launch, whose picture the first frame needs (see picture(_:waiting:)).
+    /// Reading it also readies ImageIO, which takes a process's first read
+    /// about 20 ms.
+    func prefetch(_ id: UUID) {
+        guard image(id) == nil, loading[id] == nil, let file = file(id) else { return }
+        let arrival = Arrival()
+        let task = Task.detached(priority: .userInitiated) {
+            let image = Snapshots.decode(file)
+            arrival.land(image)
+            return image
+        }
+        loading[id] = task
+        early = (id, arrival)
+        Task { [weak self] in
+            let image = await task.value
+            guard let self else { return }
+            self.loading[id] = nil
+            if let image { self.keep(image, id) }
+        }
+    }
+
+    /// The launch's picture of `id` is still on its way.
+    func prefetching(_ id: UUID) -> Bool {
+        early?.id == id && image(id) == nil
+    }
+
+    /// What's in memory, or the prefetch's picture, waited for up to
+    /// `limit` seconds. Never reads the disk itself.
+    func picture(_ id: UUID, waiting limit: TimeInterval) -> UIImage? {
+        if let image = image(id) { return image }
+        guard let early, early.id == id, let image = early.arrival.wait(limit) else { return nil }
+        self.early = nil
+        keep(image, id)
         return image
     }
 
@@ -102,5 +141,25 @@ import UniformTypeIdentifiers
         CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.7] as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return }
         _ = try? FileManager.default.replaceItemAt(file, withItemAt: temporary)
+    }
+}
+
+/// A picture landing from another thread, which the main thread can wait for.
+nonisolated private final class Arrival: @unchecked Sendable {
+    private let lock = NSLock()
+    private let landed = DispatchSemaphore(value: 0)
+    private var image: UIImage?
+
+    func land(_ image: UIImage?) {
+        lock.withLock { self.image = image }
+        landed.signal()
+    }
+
+    /// Nil if it hasn't landed within `limit`, or landed with nothing.
+    func wait(_ limit: TimeInterval) -> UIImage? {
+        guard landed.wait(timeout: .now() + limit) == .success else { return nil }
+        // Landed for good: the next wait doesn't wait.
+        landed.signal()
+        return lock.withLock { image }
     }
 }

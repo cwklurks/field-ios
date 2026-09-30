@@ -162,9 +162,11 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     }
 
     /// Makes, places and lets go of cards around what's on screen. After a
-    /// close or a reopen (see reflow), each card that was on screen goes
-    /// from where it was, `from`, and one new to the list grows in.
-    func layoutCards(from: [ObjectIdentifier: CGRect] = [:], was: [ObjectIdentifier: Int]? = nil) {
+    /// close or a reopen (see reflow), `was` has each card's index before,
+    /// and each goes from where it is on screen (see GridLayout.move): along
+    /// its row, or out and back in at its place on another, and one new to
+    /// the list grows in.
+    func layoutCards(was: [ObjectIdentifier: Int]? = nil) {
         guard bounds.width > 0, !reflowing else { return }
         let layout = layout
         let margin = bounds.height
@@ -172,7 +174,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         let list = tabs.all
         var keep = Set<ObjectIdentifier>()
         var moves: [(TabCard, CGRect)] = []
-        var arriving: [TabCard] = []
+        var growing: [TabCard] = []
         for i in wanted {
             let tab = list[i]
             let key = ObjectIdentifier(tab)
@@ -183,35 +185,38 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             if card.picture.image == nil { load(tab) }
             guard !isLoose(card) else { continue }
             let frame = layout.card(i)
-            if let was {
-                // Whoever changes row passes behind those sliding along one.
-                if let before = was[key], GridLayout.wraps(from: before, to: i) { scroll.sendSubviewToBack(card) }
-                if made, was[key] == nil {
-                    UIView.performWithoutAnimation {
-                        card.frame = frame
-                        card.alpha = 0
-                        card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
-                    }
-                    arriving.append(card)
-                    continue
+            // Its model is where it's going, so a card already on its way
+            // there is left alone, not snapped there by the next pass.
+            guard !Self.rests(card, at: frame) else { continue }
+            let move = was.map { GridLayout.move(from: $0[key], to: i) }
+            if made || move == nil {
+                UIView.performWithoutAnimation { Self.place(card, at: frame) }
+                if move == .arrive {
+                    Self.shrink(card)
+                    growing.append(card)
                 }
-            }
-            // Its model frame is where it's going, so a card already on its
-            // way there is left alone, not snapped there by the next pass.
-            let start = from[key] ?? card.frame
-            if start != frame, start != .zero, !from.isEmpty {
-                UIView.performWithoutAnimation { card.frame = start }
+            } else if move == .hop {
+                if scroll.bounds.intersects(card.frame) { fadeAway(copyOf: card) }
+                UIView.performWithoutAnimation {
+                    Self.place(card, at: frame)
+                    Self.shrink(card)
+                }
+                growing.append(card)
+            } else {
                 moves.append((card, frame))
-            } else if card.frame != frame {
-                UIView.performWithoutAnimation { card.frame = frame }
             }
         }
-        // One coming back grows in under those making room for it.
-        for card in arriving { scroll.sendSubviewToBack(card) }
-        if !moves.isEmpty || !arriving.isEmpty {
+        // Under those making room for them.
+        for card in growing { scroll.sendSubviewToBack(card) }
+        if !moves.isEmpty {
             UIView.animate(springDuration: 0.34, bounce: 0.18, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
-                for (card, frame) in moves { card.frame = frame }
-                for card in arriving {
+                for (card, frame) in moves { Self.place(card, at: frame) }
+            }
+        }
+        if !growing.isEmpty {
+            // Once the card leaving its place is mostly out of it.
+            UIView.animate(springDuration: 0.30, bounce: 0.14, delay: 0.08, options: [.allowUserInteraction]) {
+                for card in growing {
                     card.alpha = 1
                     card.transform = .identity
                 }
@@ -227,6 +232,43 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             card.pictureHidden = false
             card.decorationHidden = false
             spare.append(card)
+        }
+    }
+
+    /// Settled in `frame`, as it is at rest.
+    private static func rests(_ card: TabCard, at frame: CGRect) -> Bool {
+        card.transform == .identity && card.alpha == 1 && card.frame == frame
+    }
+
+    /// In `frame`, whole: by its centre, since it may be mid-shrink.
+    private static func place(_ card: TabCard, at frame: CGRect) {
+        card.bounds.size = frame.size
+        card.center = CGPoint(x: frame.midX, y: frame.midY)
+        card.alpha = 1
+        card.transform = .identity
+    }
+
+    /// Ready to grow in where it is.
+    private static func shrink(_ card: TabCard) {
+        card.alpha = 0
+        card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+    }
+
+    /// A picture of the card as it is, shrinking and fading where it is,
+    /// under the others, while the card itself goes on to another place.
+    private func fadeAway(copyOf card: TabCard) {
+        guard let copy = card.snapshotView(afterScreenUpdates: false) else { return }
+        copy.isUserInteractionEnabled = false
+        copy.bounds = card.bounds
+        copy.center = card.center
+        copy.transform = card.transform
+        copy.alpha = card.alpha
+        scroll.insertSubview(copy, at: 0)
+        UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+            copy.alpha = 0
+            copy.transform = card.transform.scaledBy(x: 0.9, y: 0.9)
+        } completion: { _ in
+            copy.removeFromSuperview()
         }
     }
 
@@ -330,7 +372,13 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
                 card.alpha = 0
             } completion: { gone($0) }
         } else {
-            UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+            // Its first frame's worth at once: a new animation's first frame
+            // is drawn where it starts, which would show nothing after the tap.
+            UIView.performWithoutAnimation {
+                card.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
+                card.alpha = 0.8
+            }
+            UIView.animate(withDuration: 0.12, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
                 card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
                 card.alpha = 0
             } completion: { gone($0) }
@@ -339,30 +387,37 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
 
     /// After a close or a reopen, in one spring: every card from where it is
     /// on screen to its new place. A grid now shorter than where it was
-    /// scrolled to is scrolled back at once, and the cards moved by as much,
-    /// so nothing on screen jumps: it all comes back with the cards.
+    /// scrolled to scrolls back in the same spring, and what's on its way
+    /// out stays where it is on screen.
     private func reflow(from before: [Tab]) {
         count.text = tabs.all.count == 1 ? "1 Tab" : "\(tabs.all.count) Tabs"
         let layout = layout
         let old = scroll.contentOffset.y
         let offset = layout.offset(keeping: old, viewport: bounds.height)
-        let shift = offset - old
-        var from: [ObjectIdentifier: CGRect] = [:]
-        for (key, card) in cards {
-            if isLoose(card) {
-                UIView.performWithoutAnimation { card.center.y += shift }
-            } else {
-                // Mid-move from the last close, it carries on from where it is.
-                from[key] = (card.layer.presentation()?.frame ?? card.frame).offsetBy(dx: 0, dy: shift)
-                card.layer.removeAllAnimations()
-            }
+        let leaving = loose
+        for card in cards.values where !isLoose(card) {
+            // Mid-move from the last close, it carries on from where it is.
+            guard card.layer.animationKeys()?.isEmpty == false, let now = card.layer.presentation() else { continue }
+            card.layer.removeAllAnimations()
+            card.center = now.position
+            card.transform = now.affineTransform()
+            card.alpha = CGFloat(now.opacity)
         }
-        reflowing = true
-        scroll.contentSize = CGSize(width: bounds.width, height: layout.contentHeight)
-        scroll.contentOffset.y = offset
-        reflowing = false
         let was = Dictionary(uniqueKeysWithValues: before.enumerated().map { (ObjectIdentifier($1), $0) })
-        layoutCards(from: from, was: was)
+        layoutCards(was: was)
+        let size = CGSize(width: bounds.width, height: layout.contentHeight)
+        // A shorter size clamps the offset, at once unless it's animated.
+        let resize = {
+            self.reflowing = true
+            self.scroll.contentSize = size
+            self.scroll.contentOffset.y = offset
+            self.reflowing = false
+        }
+        guard offset != old else { return resize() }
+        UIView.animate(springDuration: 0.34, bounce: 0.18, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
+            resize()
+            for card in leaving { card.center.y += offset - old }
+        }
     }
 
     // MARK: - recently closed

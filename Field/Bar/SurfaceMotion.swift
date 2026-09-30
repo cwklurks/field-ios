@@ -30,7 +30,13 @@ enum SurfaceMotion {
         _ changes: @escaping () -> Void,
         completion: ((Bool) -> Void)? = nil
     ) {
-        let options: UIView.AnimationOptions = [.beginFromCurrentState, .allowUserInteraction]
+        // Its own curve even inside another animation: the keyboard's
+        // notices come inside the keyboard's, which on a swipe's release is
+        // a few frames long, and a close there would be over as quickly.
+        let options: UIView.AnimationOptions = [
+            .beginFromCurrentState, .allowUserInteraction,
+            .overrideInheritedDuration, .overrideInheritedCurve, .overrideInheritedOptions,
+        ]
         // With Reduce Motion, every spring becomes the quick fade; the
         // keyboard keeps its own, since the surface rides it either way.
         let calm = UIAccessibility.isReduceMotionEnabled
@@ -49,6 +55,20 @@ enum SurfaceMotion {
             UIView.animate(withDuration: 0.14, delay: 0, options: options.union(.curveEaseOut),
                            animations: changes, completion: completion)
         }
+    }
+}
+
+extension SurfaceMotion {
+    /// The quick curve, already a frame along when it's first drawn. Core
+    /// Animation draws an animation's first frame where it starts, so an
+    /// answer to a touch would otherwise first move on the second frame
+    /// after it.
+    static func quickFromNextFrame(_ changes: @escaping () -> Void) {
+        let animator = UIViewPropertyAnimator(duration: 0.14, curve: .easeOut, animations: changes)
+        animator.scrubsLinearly = false
+        animator.pauseAnimation()
+        animator.fractionComplete = 1 / (0.14 * 60)
+        animator.startAnimation()
     }
 }
 

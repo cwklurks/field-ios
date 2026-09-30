@@ -6,9 +6,12 @@ struct BrowserView: View {
     let browser: Browser
 
     var body: some View {
-        @Bindable var browser = browser
         ZStack(alignment: .bottom) {
-            StageView(tabs: browser.tabs, bar: browser.bar) { browser.settingsShown = true }
+            StageView(tabs: browser.tabs, bar: browser.bar) {
+                // Straight from the tap, not from inside SwiftUI's next update.
+                browser.settingsShown = true
+                SettingsSheet.present { browser.settingsShown = false }
+            }
                 // Edge to edge, under the status bar too, as in Safari: the
                 // page is one surface from top to bottom.
                 .ignoresSafeArea(.container)
@@ -34,8 +37,13 @@ struct BrowserView: View {
         .background(Palette.ground)
         .background { if TouchMarks.isOn { TouchMarksInstaller() } }
         .modifier(StatusTone(tone: browser.fieldOpen || browser.tabs.gridShown || browser.tab.failure != nil ? nil : browser.tab.tone))
-        .sheet(isPresented: $browser.settingsShown) {
-            SettingsView()
+        // Settings is made ahead of the tap (SettingsSheet), but never
+        // between keystrokes or under a coasting page.
+        .onAppear {
+            SettingsSheet.prepareSoon {
+                let scroll = browser.tab.web?.scrollView
+                return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
+            }
         }
     }
 }

@@ -15,6 +15,10 @@ import UIKit
     /// opensInField) but focused the turn after (see start), since focusing
     /// sets up the keyboard, which would hold that frame.
     private(set) var fieldOpen = false
+    /// The field was waiting under the welcome, where Continue is: from
+    /// Continue it stays unseen until the keyboard brings it in
+    /// (FieldSurface), so it never shows through the welcome's going.
+    private(set) var fieldBehindWelcome = false
     var settingsShown = false
 
     @ObservationIgnored private var started = false
@@ -68,6 +72,11 @@ import UIKit
                 Task { await history.load() }
             }
         }
+    }
+
+    /// Continue, in the same update as the tap.
+    func leaveWelcome() {
+        fieldBehindWelcome = true
     }
 
     /// The field is wanted: the surface turns the bar into it (FieldSurface).

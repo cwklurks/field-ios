@@ -1,5 +1,6 @@
 import FieldKit
 import SwiftUI
+import UIKit
 
 /// The few things there are to choose: how the bar looks, how the app looks,
 /// and where searches go.
@@ -22,6 +23,7 @@ struct SettingsView: View {
                         .fontWeight(.medium)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
+                        .accessibilityIdentifier("settings.done")
                 }
                 section("Bar") {
                     HStack(alignment: .top, spacing: 12) {
@@ -47,7 +49,6 @@ struct SettingsView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Palette.ground)
-        .presentationBackground(Palette.ground)
         // The root's preference doesn't reach a sheet that's already up, so
         // the sheet says it too, and changes the moment Appearance does.
         .preferredColorScheme(look.scheme)
@@ -58,6 +59,72 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).ramp(.label).foregroundStyle(Palette.muted)
             content()
+        }
+    }
+}
+
+/// Settings in the system sheet, made before the tap. SwiftUI's `.sheet`
+/// builds its content on the tap, about 75 ms the first time, and the sheet
+/// waited that long to move. This one is built and drawn once while nothing
+/// moves, then only presented, so it moves as soon as UIKit's sheet can.
+@MainActor
+enum SettingsSheet {
+    private static var host: Host?
+
+    /// Two seconds on, when no finger is down (the timer doesn't fire while
+    /// the run loop tracks one) and `busy` says nothing else is going on.
+    static func prepareSoon(unless busy: @escaping @MainActor () -> Bool, tries: Int = 0) {
+        guard tries < 20 else { return }
+        Timer.scheduledTimer(withTimeInterval: tries == 0 ? 2 : 0.5, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                guard host == nil else { return }
+                if busy() { return prepareSoon(unless: busy, tries: tries + 1) }
+                _ = prepared()
+            }
+        }
+    }
+
+    static func present(onDismiss: @escaping () -> Void) {
+        guard var top = window?.rootViewController else { return }
+        while let next = top.presentedViewController { top = next }
+        let host = prepared()
+        guard host.presentingViewController == nil else { return }
+        host.onDismiss = onDismiss
+        top.present(host, animated: true)
+    }
+
+    private static var window: UIWindow? {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+    }
+
+    private static func prepared() -> Host {
+        if let host { return host }
+        // A sheet would have these from the root; a UIKit one doesn't.
+        let host = Host(rootView: AnyView(SettingsView().tint(Palette.ink).dynamicTypeSize(...Ramp.cap)))
+        host.view.backgroundColor = Palette.UI.ground
+        self.host = host
+        // A hosting view builds nothing out of a window, and the first open
+        // would wait for its pictures to reach the screen, so it's laid out
+        // and drawn once under the app's own view, where it can't be seen.
+        guard let window else { return host }
+        host.view.frame = window.bounds
+        host.view.accessibilityElementsHidden = true
+        window.insertSubview(host.view, at: 0)
+        host.view.layoutIfNeeded()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            host.view.accessibilityElementsHidden = false
+            if host.presentingViewController == nil { host.view.removeFromSuperview() }
+        }
+        return host
+    }
+
+    /// Says when it has gone, however it went: Done or a swipe down.
+    final class Host: UIHostingController<AnyView> {
+        var onDismiss: () -> Void = {}
+
+        override func viewDidDisappear(_ animated: Bool) {
+            super.viewDidDisappear(animated)
+            if presentingViewController == nil { onDismiss() }
         }
     }
 }

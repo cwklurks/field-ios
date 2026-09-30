@@ -88,7 +88,7 @@ final class TabsTour: XCTestCase {
         gear.tap()
         XCTAssertTrue(app.element("settings").waitForExistence(timeout: 2), "The grid's Settings button didn't bring up Settings.")
         try await Task.sleep(for: .seconds(1.5))
-        app.buttons["Done"].firstMatch.tap()
+        app.buttons["settings.done"].tap()
         try await Task.sleep(for: .seconds(1.5))
         XCTAssertTrue(app.element("tabs.grid").exists, "Closing Settings left the grid.")
     }

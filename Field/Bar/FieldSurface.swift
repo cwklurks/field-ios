@@ -72,9 +72,9 @@ final class FieldSurface: UIViewController {
     private var slop: CGFloat = 0
     private var step = 0
 
-    /// The field's side margins: a little wider than the bar's, so the bar
-    /// widens into it.
-    static let fieldMargin: CGFloat = 8
+    /// The field's side margins: well inside the bar's, so the bar is seen
+    /// to widen into it, and the field lines up with the keyboard's keys.
+    static let fieldMargin: CGFloat = 4
     /// Between the field and the keyboard.
     static let gap: CGFloat = 8
     /// How far the field rises at the tap, before the keyboard has started:
@@ -225,6 +225,7 @@ final class FieldSurface: UIViewController {
         // yet: its picture is under the bar until its page is.
         sampler.watch(look == .glass ? page.web : nil, fresh: page !== sampled)
         sampled = page
+        if browser.fieldBehindWelcome, resting, !entering { hideUntilKeyboard() }
         // A field waiting for focus isn't open yet: the browser opening it
         // is what gives it focus.
         let open = browser.fieldOpen
@@ -305,8 +306,11 @@ final class FieldSurface: UIViewController {
             handle(.open)
         } else if browser.fieldOpen, resting {
             resting = false
+            if entering { enterIfNoKeyboard() }
             pin()
+            let t = ContinuousClock.now
             coordinator.open(surface.field)
+            Self.log.notice("rest: focus took \(Self.ms(since: t)) ms")
         } else if !browser.fieldOpen, flow.phase == .field, !resting {
             handle(.cancel)
         }
@@ -329,7 +333,8 @@ final class FieldSurface: UIViewController {
     /// two are the same place, so the switch is unseen.
     private func pin() {
         let keyboard = flow.phase != .bar && !resting && !released
-        guard onKeyboard?.isActive != keyboard else { return }
+        // Neither is active before the first pin.
+        guard (keyboard ? onKeyboard : onGround)?.isActive == false else { return }
         onKeyboard?.isActive = false
         onGround?.isActive = false
         (keyboard ? onKeyboard : onGround)?.isActive = true
@@ -338,6 +343,7 @@ final class FieldSurface: UIViewController {
     @objc private func keyboardShowing(_ note: Notification) {
         guard !Keyboard.warming else { return }
         rising = SurfaceMotion.Curve(keyboard: note) ?? rising
+        if entering { enter() }
         if dragging != nil { springBack(on: SurfaceMotion.Curve(keyboard: note) ?? .glide) }
         // The keyboard comes up under a field that started ahead of it, and
         // takes over the rise on its own curve.
@@ -379,6 +385,8 @@ final class FieldSurface: UIViewController {
     /// The field is drawn, waiting for the browser to start before it takes
     /// focus (restInField).
     private var resting = false
+    /// The field is unseen until the keyboard shows (hideUntilKeyboard).
+    private var entering = false
 
     /// The finger on the address: it dims at once, the frame after the touch,
     /// and comes back if the finger leaves without a tap. A tap hides it.
@@ -431,12 +439,13 @@ final class FieldSurface: UIViewController {
         // Then the morph, on its way before the focus holds the main thread:
         // the focus waits for the commit that starts it, or the surface
         // would sit still until the keyboard came. On the quick curve, whose
-        // start is steep: the frame after the lift already shows the surface
-        // widening and the dim coming, where a spring's first frame barely
-        // moves. It's done before the keyboard arrives to carry it. The
-        // surface also starts up, ahead of the keyboard (see ahead).
+        // start is steep, and a frame along already: the frame after the
+        // lift shows the surface widening and the dim coming, where a
+        // spring's first frame barely moves. It's done before the keyboard
+        // arrives to carry it. The surface also starts up, ahead of the
+        // keyboard (see ahead).
         released = false
-        SurfaceMotion.animate(.quick) { [self] in
+        SurfaceMotion.quickFromNextFrame { [self] in
             place()
             rider.transform = .identity
             surface.transform = CGAffineTransform(translationX: 0, y: -Self.ahead)
@@ -480,6 +489,29 @@ final class FieldSurface: UIViewController {
         scrim.isHidden = false
         scrim.alpha = 1
         paintTone()
+    }
+
+    /// The field that waited under the welcome, where Continue was: unseen
+    /// until the keyboard starts up, then in as it rides the keyboard's top
+    /// edge, so no frame shows it through the welcome's going.
+    private func hideUntilKeyboard() {
+        entering = true
+        surface.alpha = 0
+    }
+
+    /// Focused, so in with the keyboard; or, with none coming (a hardware
+    /// one), where it is.
+    private func enterIfNoKeyboard() {
+        Task { [weak self] in
+            try? await Task.sleep(for: FieldOpening.patience)
+            self?.enter()
+        }
+    }
+
+    private func enter() {
+        guard entering else { return }
+        entering = false
+        SurfaceMotion.animate(.quick) { self.surface.alpha = 1 }
     }
 
     private func showBar(_ number: Int) {
@@ -592,7 +624,10 @@ final class FieldSurface: UIViewController {
         settling = true
         UIView.performWithoutAnimation { view.layoutIfNeeded() }
         settling = false
-        rider.transform = CGAffineTransform(translationX: 0, y: from - rider.frame.maxY)
+        // Not in the keyboard's animation, which this is called inside.
+        UIView.performWithoutAnimation {
+            rider.transform = CGAffineTransform(translationX: 0, y: from - rider.frame.maxY)
+        }
     }
 
     /// Leaves everything where the finger had it.
@@ -603,20 +638,24 @@ final class FieldSurface: UIViewController {
         self.dragging = nil
     }
 
-    /// The finger let the keyboard come back: the field again, on the
-    /// keyboard's way up, with the field's text back once it's there.
+    /// The finger let the keyboard come back: the field again, its own text
+    /// back at once where the address had got to, and home from there on
+    /// the keyboard's way up, as at a tap.
     private func springBack(on curve: SurfaceMotion.Curve) {
         stopDragging()
+        let bar = surface.bar
+        let from = surface.convert(CGPoint(x: bar.textStart + bar.address.transform.tx, y: 0), from: bar).x
+        bar.address.isHidden = true
+        bar.address.transform = .identity
+        surface.row.isHidden = false
+        surface.row.transform = CGAffineTransform(translationX: from - surface.row.frame.minX - SurfaceView.textStart, y: 0)
+        surface.magnifier.alpha = 0
         SurfaceMotion.animate(curve) { [self] in
             place()
-            surface.bar.address.transform = addressOnField()
+            surface.row.transform = .identity
+            surface.magnifier.alpha = 1
             rows.view.alpha = listed > 0 ? 1 : 0
             scrim.alpha = 1
-        } completion: { [weak self] _ in
-            guard let self, flow.phase == .field, dragging == nil else { return }
-            surface.bar.address.isHidden = true
-            surface.bar.address.transform = .identity
-            surface.row.isHidden = false
         }
     }
 

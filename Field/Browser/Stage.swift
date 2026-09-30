@@ -136,17 +136,26 @@ final class Stage: UIView {
             }
         } else {
             cover.isHidden = false
-            cover.image = picture ?? tabs.snapshots.image(tab.id)
+            // At launch, the picture on its way since the start, or a frame's
+            // wait for it (see Tabs.launch).
+            let frame = tabs.barHeld ? 0 : 1 / Double(window?.screen.maximumFramesPerSecond ?? 60)
+            cover.image = picture ?? tabs.snapshots.picture(tab.id, waiting: frame)
+            if cover.image != nil, tabs.barHeld { tabs.barHeld = false }
             // A picture stays over the page until the page has drawn, since
             // its first frames can draw the band under the bar (its scroll
             // edge) before the page's own pixels; with none, the page fades
             // in over the ground.
             if cover.image != nil { page.bringSubviewToFront(cover) } else { page.sendSubviewToBack(cover) }
             if cover.image == nil, tab.url != nil {
+                // Later than that: the bar waits with the page.
+                let late = tabs.snapshots.prefetching(tab.id)
+                if late { tabs.barHeld = true }
+                let id = tab.id
                 Task { [weak self, weak tab] in
-                    guard let tab, let image = await self?.tabs.snapshots.load(tab.id),
-                          let self, self.placed === tab, !tab.isPainted else { return }
-                    self.cover.image = image
+                    let image = await self?.tabs.snapshots.load(id)
+                    guard let self else { return }
+                    if let tab, let image, self.placed === tab, !tab.isPainted { self.cover.image = image }
+                    if late { self.tabs.barHeld = false }
                 }
             }
         }
@@ -347,6 +356,9 @@ final class Stage: UIView {
         card?.pictureHidden = true
         if turning == nil { card?.decorationHidden = true } else { card?.ringHidden = true }
         grid.showRow(true)
+        // Gone in the frame the page starts to shrink: the bar floats over
+        // the page, so fading it would draw it over the card for a moment.
+        showBar(false, now: true)
         // From rest, the page itself takes the first step, out at once:
         // copying it for the flight takes several milliseconds, which would
         // otherwise hold the frame after the tap.
@@ -361,7 +373,6 @@ final class Stage: UIView {
             CATransaction.flush()
             bringSubviewToFront(grid)
         }
-        showBar(false)
         let content = turning?.content ?? pageCopy(of: tab)
         let hero = turning?.hero ?? flyer(content, at: bounds, radius: Stage.screenRadius)
         let ring = halo ?? makeHalo(around: hero)
@@ -570,16 +581,30 @@ final class Stage: UIView {
     /// ahead, a moment after a page has painted and while nothing moves,
     /// rather than on the tap that opens it. Never while the field is up
     /// on a blank tab: the frames would fall between two keystrokes.
-    private func prewarmGrid() {
+    private func prewarmGrid(after delay: TimeInterval = 1.5) {
         guard grid == nil else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            guard let self, self.grid == nil, !self.moving, self.placed?.isPainted == true else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.grid == nil, self.placed?.isPainted == true else { return }
+            // Not under a finger or while anything coasts: a little later.
+            if self.moving || self.web?.scrollView.isTracking == true || self.web?.scrollView.isDecelerating == true {
+                return self.prewarmGrid(after: 0.5)
+            }
             // Laid out, with its cards made and their pictures decoded, so
             // the first open only has to show it.
             let grid = self.makeGrid()
-            grid.isHidden = true
             grid.frame = self.bounds
             grid.prepare()
+            // Drawn once, too faintly to see, so the first open doesn't wait
+            // for its pictures to reach the screen: that open's first frame
+            // would come late, and its copy's first step with it.
+            grid.isUserInteractionEnabled = false
+            grid.alpha = 0.01
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak grid] in
+                guard let self, let grid else { return }
+                grid.isUserInteractionEnabled = true
+                guard !self.tabs.gridShown, self.animator == nil else { return }
+                grid.isHidden = true
+            }
         }
     }
 

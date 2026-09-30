@@ -71,10 +71,28 @@ struct GridLayout: Equatable {
         min(y, max(0, contentHeight - viewport))
     }
 
-    /// A card moving from index `from` to `to` changes row, crossing the
-    /// cards that only slide along one.
+    /// A card moving from index `from` to `to` changes row.
     static func wraps(from: Int, to: Int) -> Bool {
         from / columns != to / columns
+    }
+
+    /// How a card goes to its place after a close or a reopen.
+    enum Move: Equatable {
+        case stay
+        /// Along its row.
+        case slide
+        /// To another row: out where it was and in where it goes, rather
+        /// than across the cards sliding along theirs.
+        case hop
+        /// New to the list: it grows in.
+        case arrive
+    }
+
+    /// From index `from` (nil: it wasn't in the list) to `to`.
+    static func move(from: Int?, to: Int) -> Move {
+        guard let from else { return .arrive }
+        if from == to { return .stay }
+        return wraps(from: from, to: to) ? .hop : .slide
     }
 
     /// The cards any part of which is within this stretch of content.

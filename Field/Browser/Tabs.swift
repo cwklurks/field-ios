@@ -28,7 +28,14 @@ import os
     @ObservationIgnored var openField: () -> Void = {}
     /// The bar, which only the Stage fades, as the grid comes and goes (see
     /// Stage.showBar). Set by the bar itself.
-    @ObservationIgnored weak var chrome: UIView?
+    @ObservationIgnored weak var chrome: UIView? {
+        didSet { if barHeld { chrome?.alpha = 0 } }
+    }
+    /// The bar waits for the page at launch, when the page's picture is
+    /// late, rather than showing over a blank page (see Stage.place).
+    @ObservationIgnored var barHeld = false {
+        didSet { chrome?.alpha = barHeld ? 0 : 1 }
+    }
     /// The first frame is up, and tabs may be woken (see Browser.start).
     @ObservationIgnored var started = false
 
@@ -82,7 +89,11 @@ import os
         // the file and its pictures are left as they are for next time.
         let read = store.read()
         let tabs = Tabs(history: history, restoring: read ?? Session.Shape(), store: store, snapshots: snapshots)
-        if let read { snapshots.prune(keeping: Set(read.tabs.map(\.id))) }
+        if let read {
+            // On its way now, for the first frame (see Stage.place).
+            if tabs.current.url != nil { snapshots.prefetch(tabs.current.id) }
+            snapshots.prune(keeping: Set(read.tabs.map(\.id)))
+        }
         return tabs
     }
 

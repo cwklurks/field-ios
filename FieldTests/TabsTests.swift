@@ -27,6 +27,18 @@ struct TabsTests {
         #expect(!t.current.asleep)
     }
 
+    /// At launch, a page whose picture is late holds the bar back with it,
+    /// even a bar made after the hold began, and lets it go with the page.
+    @Test func aHeldBarWaitsWithThePage() {
+        let t = tabs()
+        t.barHeld = true
+        let bar = UIView()
+        t.chrome = bar
+        #expect(bar.alpha == 0)
+        t.barHeld = false
+        #expect(bar.alpha == 1)
+    }
+
     /// Every tab comes back asleep, the active one included: it's the one
     /// woken first, after the first frame.
     @Test func restoresEveryTabAsleepWithItsId() {
