@@ -25,3 +25,24 @@ from it say so in their first lines.
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
+
+## Navigation guard rule tables
+
+The navigation guard (FieldKit/Sources/FieldKit/Guard/Rules) ships snapshots of
+these lists, unmodified apart from a `_meta` header with the source, the date
+fetched and the licence. `scripts/guard/update.sh` fetches them.
+
+- **Brave query filter and debounce lists** (`brave-query-filter.json`,
+  `brave-debounce.json`), Copyright Brave Software, Inc., from
+  https://github.com/brave/adblock-lists (brave-lists/). Mozilla Public
+  License 2.0, https://mozilla.org/MPL/2.0/. The source of these files is
+  the repository above and the copies in this one.
+- **DuckDuckGo tracking parameters** (`ddg-tracking-parameters.json`),
+  Copyright DuckDuckGo, Inc., from
+  https://github.com/duckduckgo/privacy-configuration (features/). Apache
+  License 2.0, https://www.apache.org/licenses/LICENSE-2.0. The file's own
+  `_meta` was replaced by ours; nothing else was changed.
+- **Public Suffix List** (`public-suffix-list.json`), from
+  https://publicsuffix.org/list/public_suffix_list.dat, split into plain,
+  wildcard and exception rules with punycode forms added. Mozilla Public
+  License 2.0, https://mozilla.org/MPL/2.0/.

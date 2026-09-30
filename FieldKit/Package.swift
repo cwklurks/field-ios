@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.iOS(.v26), .macOS(.v26)],
     products: [.library(name: "FieldKit", targets: ["FieldKit"])],
     targets: [
-        .target(name: "FieldKit"),
+        .target(name: "FieldKit", exclude: ["Guard/README.md"], resources: [.process("Guard/Rules")]),
         .testTarget(name: "FieldKitTests", dependencies: ["FieldKit"]),
     ]
 )

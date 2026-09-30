@@ -1,0 +1,15 @@
+{
+ "_meta": {
+  "source": "Field",
+  "licence": "Field's own table",
+  "note": "Link shims the big sites wrap outbound links in, in the shape of Brave's debounce.json. A rule applies only when the target's registrable domain differs from the shim's. \"*.google.*\" is google under any public suffix, with or without a subdomain."
+ },
+ "rules": [
+  {"include": ["*://*.google.*/url?*"], "exclude": [], "action": "redirect", "param": "url"},
+  {"include": ["*://*.google.*/url?*"], "exclude": [], "action": "redirect", "param": "q"},
+  {"include": ["*://*.google.*/aclk?*", "*://*.googleadservices.com/pagead/aclk?*"], "exclude": [], "action": "redirect", "param": "adurl"},
+  {"include": ["*://l.facebook.com/l.php?*", "*://lm.facebook.com/l.php?*", "*://l.messenger.com/l.php?*", "*://l.instagram.com/?*"], "exclude": [], "action": "redirect", "param": "u"},
+  {"include": ["*://out.reddit.com/*"], "exclude": [], "action": "redirect", "param": "url"},
+  {"include": ["*://*.youtube.com/redirect?*"], "exclude": [], "action": "redirect", "param": "q"}
+ ]
+}

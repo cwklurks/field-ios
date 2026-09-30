@@ -1,0 +1,11 @@
+{
+ "_meta": {
+  "source": "Field",
+  "licence": "Field's own table",
+  "note": "AMP viewer addresses rewritten to the publisher's own, in the shape of Brave's debounce.json. The page's rel=canonical is left to the de-AMP page script."
+ },
+ "rules": [
+  {"include": ["*://*.google.*/amp/s/*"], "exclude": [], "prepend_scheme": "https", "action": "regex-path", "param": "^/amp/s/(.*)$"},
+  {"include": ["*://*.cdn.ampproject.org/c/s/*"], "exclude": [], "prepend_scheme": "https", "action": "regex-path", "param": "^/c/s/(.*)$"}
+ ]
+}
