@@ -48,6 +48,9 @@ final class FieldSurface: UIViewController {
     /// held at as far as the keyboard has gone (KeyboardDrag), on the
     /// surface's own stopped clock (beginDragging).
     private var dragging = false
+    /// The drag ended with the scrub stopped part way, UIKit yet to say
+    /// what the keyboard does (scrollViewDidEndDragging).
+    private var held = false
     /// What the scrub animates, to leave where it is when it stops.
     private var scrubbed: [(layer: CALayer, key: String, path: String)] = []
     /// UIKit's resign, held back (holdFocus).
@@ -200,7 +203,7 @@ final class FieldSurface: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         scrim.contentSize = scrim.bounds.size
-        if !dragging { place() }
+        if !dragging, !held { place() }
         // A finger taking the keyboard down takes the field with it, turning
         // it into the bar as far as the keyboard has gone, and the dimming
         // going with it. Where the finger lifts, UIKit decides whether the
@@ -208,7 +211,7 @@ final class FieldSurface: UIViewController {
         guard flow.phase == .field, scrim.isTracking, Keyboard.up else { return }
         let gone = KeyboardDrag.gone(height: view.keyboardLayoutGuide.layoutFrame.height,
                                      full: keyboardHeight, rest: view.safeAreaInsets.bottom)
-        if !dragging, gone > 0 { beginDragging() }
+        if !dragging, !held, gone > 0 { beginDragging() }
         guard dragging else { return }
         surface.layer.timeOffset = min(gone, 0.999)
         scrim.alpha = 1 - gone
@@ -353,7 +356,7 @@ final class FieldSurface: UIViewController {
         guard !Keyboard.warming else { return }
         rising = SurfaceMotion.Curve(keyboard: note) ?? rising
         if entering { enter() }
-        if dragging { springBack(on: SurfaceMotion.Curve(keyboard: note) ?? .glide) }
+        if dragging || held { springBack(on: SurfaceMotion.Curve(keyboard: note) ?? .glide) }
         // The keyboard comes up under a field that started ahead of it, and
         // takes over the rise on its own curve.
         if flow.phase == .field, surface.transform != .identity {
@@ -424,6 +427,7 @@ final class FieldSurface: UIViewController {
         if !prepared { prepare() }
         prepared = false
         hiding = nil
+        held = false
         listed = 0
         rows.view.alpha = 0
 
@@ -531,7 +535,8 @@ final class FieldSurface: UIViewController {
         // the field's text, starting where that text is. Set up before the
         // keyboard is told to go: its animation lays the surface out, and has
         // to start from here.
-        let dragged = dragging
+        let dragged = dragging || held
+        held = false
         stopDragging()
         let bar = surface.bar
         if dragged { bar.say(goingTo ?? page.url) } else { showAddress() }
@@ -548,7 +553,7 @@ final class FieldSurface: UIViewController {
         // down with it (it lays the rider out inside that animation). Taking
         // that animation off the rider would end UIKit's early, and the
         // keyboard, drawn by another process, would vanish in a frame.
-        let swiped = hiding != nil && scrim.isTracking
+        let swiped = hiding != nil && (scrim.isTracking || dragged)
         let curve = swiped ? .glide : hiding ?? (keyboard ? rising : nil) ?? .glide
         hiding = nil
         if swiped {
@@ -711,6 +716,7 @@ final class FieldSurface: UIViewController {
     /// the keyboard's way up, as at a tap.
     private func springBack(on curve: SurfaceMotion.Curve) {
         stopDragging()
+        held = false
         let bar = surface.bar
         let from = surface.convert(CGPoint(x: bar.textStart + bar.address.transform.tx, y: 0), from: bar).x
         bar.address.isHidden = true
@@ -865,11 +871,19 @@ final class FieldSurface: UIViewController {
 }
 
 extension FieldSurface: UIScrollViewDelegate {
-    /// The finger lifted and UIKit is keeping the keyboard, which it says
-    /// by not hiding it (keyboardHiding comes first, when it goes).
+    /// The drag is over: UIKit says what the keyboard does, going
+    /// (keyboardHiding) or coming back (keyboardShowing), before this on a
+    /// lift and just after it on a cancelled touch. Saying neither, it stays.
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         guard dragging, flow.phase == .field else { return }
-        springBack(on: rising ?? .glide)
+        // Stopped here, outside UIKit's animation of the keyboard: stopping
+        // it inside would end that animation, and the keyboard with it.
+        stopDragging()
+        held = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self, held, flow.phase == .field else { return }
+            springBack(on: rising ?? .glide)
+        }
     }
 }
 

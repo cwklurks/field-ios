@@ -164,7 +164,7 @@ final class CriticTour: XCTestCase {
     }
 
     /// 3d: a flick down the keyboard; then a short drag let go while still
-    /// moving.
+    /// moving; then one let go just as it reaches the keyboard.
     @MainActor func testFlickDown() async throws {
         let app = launch([], open: server.url("/article"))
         let address = try app.required("bar.address", timeout: 10)
@@ -178,6 +178,10 @@ final class CriticTour: XCTestCase {
         address.tap()
         try await pause(1.5)
         top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)), withVelocity: 600, thenHoldForDuration: 0)
+        try await pause(2)
+        address.tap()
+        try await pause(1.5)
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.63)), withVelocity: 800, thenHoldForDuration: 0)
         try await pause(2)
     }
 
