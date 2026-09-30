@@ -1,0 +1,5 @@
+! Field's own block rules, in Adblock Plus syntax, added to the first domain list.
+! Generic ad scripts by name, first party or third: bait files like these are
+! what ad-block tests and many ad loaders use.
+/ads.js^$script
+/pagead.js^$script

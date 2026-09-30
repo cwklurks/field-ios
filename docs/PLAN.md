@@ -87,7 +87,7 @@ Smoothness is checked on the iPhone 17 (120 Hz) in a Release build, with Instrum
   - If a tab's web process dies, the tab reloads (it is recreated after 3 failures).
 - **Storage.** JSON files in Application Support, as on the Mac (`history.json`, `session.json`, `saved.json`). Writes are debounced and happen off the main thread, flushed when the app goes to the background.
 - **Blocking.**
-  - Lists: EasyList + EasyPrivacy, converted to WebKit JSON with AdGuard's SafariConverterLib by a script in this repo, 122k rules in all. SafariConverterLib is GPL-3, but it runs at build time and never ships in the app.
+  - Lists: EasyList + EasyPrivacy (via AdGuard's SafariConverterLib) plus HaGeZi Multi PRO and native-tracker domain lists, about 288k rules in five lists; 100% on adblock.turtlecute.org with no breakage on 18 major sites. SafariConverterLib is GPL-3, but it runs at build time and never ships in the app.
   - Compilation: the gzipped JSON ships in the app and compiles once in the background on first launch (about 2.5 s on a fast chip, not on the first-paint path). After that, `lookUp` loads it in about 0.2 ms.
   - Per-site off switch: add or remove the lists on that tab's content controller, as the Mac's `Shield.swift` does.
   - v1 lists refresh with each build, not over the network.

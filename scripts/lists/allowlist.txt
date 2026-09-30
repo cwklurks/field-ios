@@ -1,0 +1,3 @@
+! Exceptions for pages Field's lists broke, in Adblock Plus syntax. Each is
+! added to every list, since a WebKit list's exceptions only reach its own
+! rules. Say which site broke and how.

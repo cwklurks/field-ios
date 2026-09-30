@@ -1,0 +1,42 @@
+! Domains Field never blocks whole: sites people use, whose tracking lives on
+! subdomains. Only a subdomain of one of these can be blocked (metrics.icloud.com,
+! never icloud.com). domains.py drops any rule for one of these exactly.
+amazon.com
+amazonaws.com
+apple.com
+bing.com
+byteoversea.com
+cloudflare.com
+cloudfront.net
+facebook.com
+github.com
+google.com
+googleapis.com
+gstatic.com
+hicloud.com
+icloud.com
+instagram.com
+linkedin.com
+microsoft.com
+miui.com
+mzstatic.com
+oppomobile.com
+pinterest.com
+realme.com
+realmemobile.com
+reddit.com
+redditmedia.com
+samsung.com
+spotify.com
+tiktok.com
+twitter.com
+unity3d.com
+whatsapp.com
+wp.com
+x.com
+xiaomi.com
+yahoo.com
+yahooinc.com
+yandex.net
+yandex.ru
+youtube.com

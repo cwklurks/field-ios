@@ -1,5 +1,5 @@
 {
-  "date": "2026-09-30T05:31:06Z",
+  "date": "2026-09-30T19:18:08Z",
   "converter": "SafariConverterLib 4.3.0",
   "safariVersion": "26.0",
   "lists": [
@@ -7,19 +7,46 @@
       "name": "easylist",
       "file": "easylist.json.gz",
       "source": "https://easylist.to/easylist/easylist.txt",
-      "rules": 59482,
-      "sha256": "85a58314c3be945336cda4c14556db074811ff16ed1d84bdd50dcfbf08a018af",
-      "listVersion": "202609300518",
+      "rules": 59670,
+      "sha256": "478df7aa71b2df0f568ec868bb4ff0d07e144b8147446e9f79025929eb2aa1a7",
+      "listVersion": "202609301850",
       "expires": "4 days (update frequency)"
     },
     {
       "name": "easyprivacy",
       "file": "easyprivacy.json.gz",
       "source": "https://easylist.to/easylist/easyprivacy.txt",
-      "rules": 56212,
-      "sha256": "4badfd581ac5a5a30102f7186e933d0973f037db159d1b5f3c11596ddc0b8852",
-      "listVersion": "202609300518",
+      "rules": 56214,
+      "sha256": "72e613343ca7bcbdbed58fb315d316bb88dd152dd559d432dfdfcb4b5d715bca",
+      "listVersion": "202609301850",
       "expires": "4 days (update frequency)"
+    },
+    {
+      "name": "domains-1",
+      "file": "domains-1.json.gz",
+      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "rules": 60003,
+      "sha256": "dddebf2f05b1c0d66e13667acbf6dcd367a8487590edbbf13757fbf3791986a8",
+      "listVersion": "2026.0930.1515.06",
+      "expires": "8 hours"
+    },
+    {
+      "name": "domains-2",
+      "file": "domains-2.json.gz",
+      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "rules": 60001,
+      "sha256": "d0d475c5b9c1e788bc21be6ef0565afa25da430cff00e43f83dfc292c9cf2b47",
+      "listVersion": "2026.0930.1515.06",
+      "expires": "8 hours"
+    },
+    {
+      "name": "domains-3",
+      "file": "domains-3.json.gz",
+      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "rules": 52578,
+      "sha256": "259583bc456571d870ae83dd90a4ad1b9f0652dfec39e03740c763dc5bec6419",
+      "listVersion": "2026.0930.1515.06",
+      "expires": "8 hours"
     }
   ]
 }

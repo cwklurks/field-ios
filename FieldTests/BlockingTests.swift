@@ -78,7 +78,8 @@ struct BlockingShieldTests {
     }
 }
 
-/// What ships: two lists, each under WebKit's 150,000 rules, each compiled
+/// What ships: EasyList, EasyPrivacy and the domain lists, each under
+/// WebKit's 150,000 rules, each compiled
 /// under a name that changes when its contents do.
 struct BlockingManifestTests {
     private func manifest(_ lists: (String, String)...) -> BlockingManifest {
@@ -87,7 +88,9 @@ struct BlockingManifestTests {
 
     @Test func theBundledLists() throws {
         let manifest = try #require(BlockingManifest.bundled())
-        #expect(manifest.lists.map(\.name) == ["easylist", "easyprivacy"])
+        #expect(manifest.lists.map(\.name).prefix(2) == ["easylist", "easyprivacy"])
+        #expect(manifest.lists.dropFirst(2).map(\.name) == (1...manifest.lists.count - 2).map { "domains-\($0)" })
+        #expect(manifest.lists.count >= 4)
         for list in manifest.lists {
             #expect(list.rules > 10_000 && list.rules < 150_000)
             #expect(FileManager.default.fileExists(atPath: manifest.directory!.appendingPathComponent(list.file).path))
@@ -220,5 +223,39 @@ struct BlockingLullTests {
     @Test func noWaitNeeded() {
         var lull = Lull(needed: .zero, interval: .milliseconds(250))
         #expect(ticks(&lull, [true]) == 0)
+    }
+
+    /// Once one lull has come, the app was quiet a moment ago, so each list
+    /// after the first needs only a short one.
+    @Test func laterListsNeedLess() {
+        var lull = Lull(needed: .seconds(1), interval: .milliseconds(250), then: .milliseconds(500), deadline: .seconds(60))
+        #expect(ticks(&lull, Array(repeating: true, count: 8)) == 1000)
+        // The list compiled for a while; the next wait starts with a late tick.
+        #expect(ticks(&lull, from: 3000, Array(repeating: true, count: 8)) == 3500)
+    }
+
+    /// Someone who keeps busy doesn't stay unprotected: past the deadline,
+    /// the short quiet will do.
+    @Test func pastTheDeadlineAShortQuietWillDo() {
+        var lull = Lull(needed: .seconds(1), interval: .milliseconds(250), then: .milliseconds(500), deadline: .seconds(3))
+        let busy = Array(repeating: [true, true, false], count: 4).flatMap { $0 }
+        #expect(ticks(&lull, busy) == nil)
+        #expect(!lull.isPastDeadline(at: start + .milliseconds(2750)))
+        #expect(lull.isPastDeadline(at: start + .seconds(3)))
+        #expect(ticks(&lull, from: 3000, [true, true, true]) == 3500)
+    }
+
+    /// What counts as quiet: the app in front, and before the deadline no
+    /// keyboard. After it, the keyboard may be up as long as nothing's
+    /// been typed (or the keyboard moved) for a while.
+    @Test func whatCountsAsQuiet() {
+        let now = start + .seconds(10)
+        let long = now - .seconds(5), just = now - .milliseconds(100)
+        #expect(Lull.isQuiet(active: true, keyboardUp: false, lastInput: nil, pastDeadline: false, at: now, calm: .seconds(2)))
+        #expect(!Lull.isQuiet(active: false, keyboardUp: false, lastInput: nil, pastDeadline: true, at: now, calm: .seconds(2)))
+        #expect(!Lull.isQuiet(active: true, keyboardUp: true, lastInput: long, pastDeadline: false, at: now, calm: .seconds(2)))
+        #expect(Lull.isQuiet(active: true, keyboardUp: true, lastInput: long, pastDeadline: true, at: now, calm: .seconds(2)))
+        #expect(!Lull.isQuiet(active: true, keyboardUp: true, lastInput: just, pastDeadline: true, at: now, calm: .seconds(2)))
+        #expect(!Lull.isQuiet(active: true, keyboardUp: false, lastInput: just, pastDeadline: true, at: now, calm: .seconds(2)))
     }
 }

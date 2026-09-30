@@ -13,9 +13,9 @@ Everything here is in `Field/Blocking/`. The frozen files need the lines below a
 | `shieldAction(for: url, reload:)` | The switch as a menu item, or nil for a page with no site. |
 | `ContentBlocking.blockedURL(from: error)` | Non-nil when WebKit's error 104 means the lists stopped the page itself. |
 | `loadAnyway(url, in: web)` | Loads that one page without the lists. |
-| `ready` | Both lists are on every page whose shield is on. |
+| `ready` | Every list is on every page whose shield is on. |
 
-Pages load unprotected until the lists are ready. Open tabs pick them up at their next navigation.
+Pages load unprotected until the lists are ready. Each list goes onto the open pages the moment it's compiled, so what they load from then on is blocked without a reload.
 
 ## 1. Launch: `Field/FieldApp.swift`
 
@@ -152,9 +152,10 @@ M4 hangs Save and Star on the same long-press, so both go in this one deferred m
 
 ## Things to know
 
-- **The one main-thread cost is WebKit parsing a list** before it compiles off the main thread: 47 ms for EasyList and 37 ms for EasyPrivacy on the iPhone 18 Pro simulator. It happens only when a list is new: the first launch, and the first launch after a build that changed the lists (v1 lists change with each build). Each parse waits for a lull (`Lull`): the app in front, no keyboard, and a default-mode run-loop timer firing on time for 2 s. That rules out typing, a finger on a scroll view, coasting and busy stretches. A tap that lands in that ~40 ms window is delayed once.
-- **On a blank tab the keyboard is up**, so the lists compile after the first address is sent, while that page loads. That page is unprotected.
+- **The lists:** EasyList, EasyPrivacy, and three domain lists (`domains-1…3`) made from HaGeZi Multi PRO and its native-tracker lists by `scripts/lists/domains.py`. About 288k rules in all, each list at most 60k. The domain lists never block a page itself (a typed address or a link to one still opens), and a tracker's own site (a registrable domain) is blocked only as a third party.
+- **The one main-thread cost is WebKit parsing a list** before it compiles off the main thread: 43–61 ms per list on the iPhone 17e simulator. It happens only when a list is new: the first launch, and the first launch after a build that changed the lists (they change with each list refresh). Each parse waits for a lull (`Lull`): the app in front, no keyboard, and a default-mode run-loop timer firing on time, for 2 s before the first list and 0.5 s before each after it. That rules out a finger on a scroll view, coasting and busy stretches. 10 s after the first wait began, 0.5 s will do for any list, and the keyboard may be up if the app's own fields haven't been typed in and the keyboard hasn't moved for 2 s (typing into a page can't be seen). A tap that lands in one of those windows is delayed once.
+- **Compile times** on the iPhone 17e simulator: EasyList 1.5 s, EasyPrivacy 1.1 s, each domain list 0.65–0.76 s. The peak footprint stays at EasyList's 274 MB; the lists are compiled one at a time. All five are ready about 11 s after a first launch left alone. The compiled lists take about 107 MB on disk.
 - **After an iOS update**, WebKit's `lookUp` recompiles a list whose compiled format changed, from the source it keeps in the file. That wasn't measured, and where WebKit parses in that case is unverified.
 - **Redirects after "Load anyway":** only the first navigation goes without the lists. A server redirect asks `decidePolicyFor` again, and the lists go back on for the redirect's target.
 - **Measuring:** launch with `-FieldBlockingProbe YES`. It prints the lookUp and compile times, the longest main-thread gap during each, the time `apply` takes, and the memory footprint, to stdout and to the log under `com.connork.field` / `blocking`. Launch arguments are the only way to turn it on.
-- **Refreshing the lists:** `scripts/lists/build.sh`, then rebuild. Each list's identifier contains the sha256 of its JSON, so a changed list compiles again and the old one is removed on the next launch.
+- **Refreshing the lists:** `scripts/lists/build.sh` (it needs `uv` and `jq`), then rebuild. Field's own rules are in `scripts/lists/`: `protected.txt` (shared sites never blocked whole), `allowlist.txt` (exceptions for sites the lists broke, added to every list) and `extra.txt`. Each list's identifier contains the sha256 of its JSON, so a changed list compiles again and the old one is removed on the next launch.

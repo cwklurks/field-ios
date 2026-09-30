@@ -69,3 +69,20 @@ was changed. `scripts/lists/build.sh` fetches and converts them, and
   https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
   Public License, version 3. It is not part of the app and is not
   distributed with it.
+
+### Domain lists
+
+Field also ships HaGeZi's domain lists (Field/Resources/Lists/domains-*.json.gz),
+merged, trimmed and converted by `scripts/lists/domains.py` and `build.sh`:
+domains EasyList or EasyPrivacy already block are left out, a list's own
+domain blocks as a third party only, a few shared sites (protected.txt) are
+never blocked whole, and the result is split into lists of at most 60,000
+rules. Field's own rules (extra.txt, allowlist.txt) are added to them.
+
+- **HaGeZi's DNS Blocklists**: Multi PRO (`adblock/pro.txt`) and the native
+  tracker lists for Apple, Amazon, Huawei, Samsung, TikTok, Xiaomi,
+  Oppo/Realme, Vivo, LG webOS and Roku (`adblock/native.*.txt`), by
+  HaGeZi, from https://github.com/hagezi/dns-blocklists. GNU General
+  Public License, version 3, https://www.gnu.org/licenses/gpl-3.0.html. The
+  source of these lists is that repository; the lists as Field ships them
+  are under the same licence.

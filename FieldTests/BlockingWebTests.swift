@@ -97,6 +97,69 @@ struct BlockingWebTests {
         #expect(try await !page.loaded("ad"))
     }
 
+    /// The restored tab's first page is decided in the same turn the lists
+    /// start to be looked up: it waits the few milliseconds that takes, so a
+    /// launch with the lists already compiled never loads a page without them.
+    @Test func theFirstPageWaitsForTheLookUp() async throws {
+        defer { clean() }
+        let manifest = try lists()
+        let first = blocking(manifest)
+        first.prepare()
+        await first.preparing?.value
+
+        let again = blocking(manifest)
+        var ran = false
+        again.whenLookedUp { ran = true }
+        #expect(ran)
+
+        again.prepare()
+        let lists: Int = await withCheckedContinuation { done in
+            again.whenLookedUp {
+                let page = Page()
+                again.apply(to: page.controller, host: "example.com")
+                done.resume(returning: again.ready ? 1 : 0)
+            }
+        }
+        #expect(lists == 1)
+        await again.preparing?.value
+        ran = false
+        again.whenLookedUp { ran = true }
+        #expect(ran)
+    }
+
+    /// A page that opened before the lists were ready gets them the moment
+    /// they are, without a navigation: what it loads from then on is blocked.
+    /// One whose site has the shield off, or that loaded anyway, doesn't.
+    @Test func pagesOpenBeforeTheListsGetThem() async throws {
+        defer { clean() }
+        let server = try await Server.start()
+        defer { server.stop() }
+        let blocking = blocking(try lists())
+        let host = try #require(server.url.host())
+        let early = Page(), off = Page(), anyway = Page()
+        blocking.apply(to: early.controller, host: host)
+        try await early.open(server.url.appendingPathComponent("page"))
+        #expect(try await early.loaded("ad"))
+
+        var elsewhere = try #require(URLComponents(url: server.url, resolvingAgainstBaseURL: false))
+        elsewhere.host = "localhost"
+        let offURL = try #require(elsewhere.url).appendingPathComponent("page")
+        blocking.setShield(false, for: "localhost")
+        blocking.apply(to: off.controller, host: "localhost")
+        try await off.open(offURL)
+        blocking.loadAnyway(server.url.appendingPathComponent("page"), in: anyway.web)
+        blocking.apply(to: anyway.controller, host: host)
+        try await anyway.finished()
+
+        blocking.prepare()
+        await blocking.preparing?.value
+        #expect(blocking.ready)
+        #expect(try await early.fetches("/late/ok.svg"))
+        #expect(try await !early.fetches("/late/ad.svg"))
+        #expect(try await off.fetches("/late/ad.svg"))
+        #expect(try await anyway.fetches("/late/ad.svg"))
+    }
+
     /// A page the list stops outright fails with 104, and "Load anyway"
     /// gets it, once.
     @Test func loadAnyway() async throws {
@@ -187,6 +250,19 @@ struct BlockingWebTests {
 
     func finished() async throws {
         try await withCheckedThrowingContinuation { waiting = $0 }
+    }
+
+    /// Whether an image at `path` loads into the page now.
+    func fetches(_ path: String) async throws -> Bool {
+        let script = """
+        return await new Promise(done => {
+            const image = new Image()
+            image.onload = () => done(true)
+            image.onerror = () => done(false)
+            image.src = path
+        })
+        """
+        return try await web.callAsyncJavaScript(script, arguments: ["path": path], contentWorld: .page) as? Bool == true
     }
 
     func loaded(_ id: String) async throws -> Bool {

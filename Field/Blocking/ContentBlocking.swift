@@ -2,24 +2,27 @@ import Foundation
 import WebKit
 import os
 
-/// Ad and tracker blocking: EasyList and EasyPrivacy as two WebKit content
-/// rule lists, enforced inside WebKit before a request is made, so a page
-/// costs nothing extra to run. See docs/research/blocking-and-redirects.md.
+/// Ad and tracker blocking: EasyList, EasyPrivacy and HaGeZi's tracker and
+/// ad domains as WebKit content rule lists, enforced inside WebKit before a
+/// request is made, so a page costs nothing extra to run. See
+/// docs/research/blocking-and-redirects.md.
 ///
 /// The lists ship as gzipped JSON (scripts/lists/build.sh) and compile once,
 /// in the background, after the first frame; from then on a launch only looks
 /// them up, which takes a fraction of a millisecond. Until they're ready,
-/// pages load unprotected, and open tabs pick them up at their next page.
+/// pages load unprotected; each list goes onto the open pages as it's ready,
+/// covering everything they load from then on.
 ///
 /// Every call into WKContentRuleListStore is made on the main actor: Brave
 /// crashed on iOS 26 until it did. The compiling itself runs on WebKit's
 /// own queue, but WebKit parses the list first, on the thread that asked,
 /// which holds the main thread for about 40 ms per list: so each waits for
-/// a lull (Lull), never while typing, scrolling or leaving the app.
+/// a lull (Lull), never while scrolling, typing into the app's fields or
+/// leaving the app. Past a deadline a short lull will do, keyboard or not.
 @MainActor final class ContentBlocking {
     static let shared = ContentBlocking()
 
-    /// Both lists are compiled and go on every page the shield is on for.
+    /// Every list is compiled and goes on every page the shield is on for.
     private(set) var ready = false
 
     private var shields: Shields
@@ -29,36 +32,57 @@ import os
     private let idle: Duration
     private var lull: Lull
     private var keyboardUp = false
+    /// The keyboard last moved, or the app's own fields were last typed in.
+    private var lastInput: ContinuousClock.Instant?
     private var ticking: Timer?
     private(set) var preparing: Task<Void, Never>?
+    /// Between `prepare()` and the lists being looked up: navigations
+    /// decided then wait for it (`whenLookedUp`).
+    private var lookingUp = false
+    private var waiting: [() -> Void] = []
     /// How many of `lists` each controller has on, so a navigation that
     /// changes nothing sends WebKit nothing.
     private let applied = NSMapTable<WKUserContentController, NSNumber>.weakToStrongObjects()
+    /// Whether each controller's page is to have the lists, so a list that
+    /// becomes ready goes straight onto the pages already open.
+    private let wanting = NSMapTable<WKUserContentController, NSNumber>.weakToStrongObjects()
     /// Controllers whose next page loads without the lists: "Load anyway".
     private let passing = NSHashTable<WKUserContentController>.weakObjects()
 
     /// `store` is a directory for a store of its own (tests), or nil for
     /// WebKit's default. `idle` is how long the app has to be quiet before
-    /// a list is compiled. Made before the field first focuses, so it sees
-    /// the keyboard come up.
+    /// the first list is compiled; the rest need a quarter of that, and after
+    /// `deadline` so does the first. Made before the field first focuses, so
+    /// it sees the keyboard come up.
     init(
         manifest: URL? = Bundle.main.url(forResource: BlockingManifest.resource, withExtension: "json"),
         store: URL? = nil,
         defaults: UserDefaults = .standard,
         domain: @escaping (String) -> String = Shields.registrableDomain,
-        idle: Duration = .seconds(2)
+        idle: Duration = .seconds(2),
+        deadline: Duration = .seconds(10)
     ) {
         manifestURL = manifest
         storeURL = store
         self.idle = idle
-        lull = Lull(needed: idle, interval: .milliseconds(250))
+        lull = Lull(needed: idle, interval: .milliseconds(250), then: idle / 4, deadline: deadline)
         shields = Shields(defaults: defaults, domain: domain)
         let center = NotificationCenter.default
-        center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.keyboardUp = true }
-        }
-        center.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.keyboardUp = false }
+        let inputs: [(Notification.Name, Bool?)] = [
+            (UIResponder.keyboardWillShowNotification, true),
+            (UIResponder.keyboardWillHideNotification, nil),
+            (UIResponder.keyboardDidHideNotification, false),
+            (UITextField.textDidChangeNotification, nil),
+            (UITextView.textDidChangeNotification, nil),
+        ]
+        for (name, up) in inputs {
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.lastInput = .now
+                    if let up { self.keyboardUp = up }
+                }
+            }
         }
     }
 
@@ -66,7 +90,36 @@ import os
     /// missing or out of date, compiles it once things are quiet.
     func prepare() {
         guard preparing == nil else { return }
+        lookingUp = true
         preparing = Task { await load() }
+    }
+
+    /// Runs `go` once the compiled lists have been looked up: straight away
+    /// if they have (or nothing's looking), otherwise when they are, a few
+    /// milliseconds from launch. So the restored tab's first page, decided in
+    /// the same turn as `prepare()`, gets the lists. A lookUp that recompiles
+    /// (after an iOS update) can take seconds, so the wait stops at `limit`
+    /// and the lists reach the page as they're ready instead.
+    func whenLookedUp(limit: Duration = .milliseconds(100), _ go: @escaping () -> Void) {
+        guard lookingUp else { return go() }
+        var gone = false
+        let once = {
+            guard !gone else { return }
+            gone = true
+            go()
+        }
+        waiting.append(once)
+        Task {
+            try? await Task.sleep(for: limit)
+            once()
+        }
+    }
+
+    private func lookedUp() {
+        lookingUp = false
+        let waiting = waiting
+        self.waiting = []
+        waiting.forEach { $0() }
     }
 
     /// Before each main-frame navigation: the lists go on or come off this
@@ -75,11 +128,16 @@ import os
     func apply(to controller: WKUserContentController, host: String?) {
         let passes = passing.contains(controller)
         passing.remove(controller)
-        let wanted = !passes && shields.isOn(for: host) ? lists.count : 0
-        guard applied.object(forKey: controller)?.intValue ?? 0 != wanted else { return }
+        let wants = !passes && shields.isOn(for: host)
+        wanting.setObject(NSNumber(value: wants), forKey: controller)
+        put(wants ? lists.count : 0, on: controller)
+    }
+
+    private func put(_ count: Int, on controller: WKUserContentController) {
+        guard applied.object(forKey: controller)?.intValue ?? 0 != count else { return }
         lists.forEach(controller.remove)
-        lists.prefix(wanted).forEach(controller.add)
-        applied.setObject(NSNumber(value: wanted), forKey: controller)
+        lists.prefix(count).forEach(controller.add)
+        applied.setObject(NSNumber(value: count), forKey: controller)
     }
 
     /// A host's site, which the shield is kept by: the guard's
@@ -122,6 +180,7 @@ import os
               let store = storeURL.map(WKContentRuleListStore.init(url:)) ?? WKContentRuleListStore.default()
         else {
             Self.log.error("No block lists to load")
+            lookedUp()
             return
         }
         var found: [String: WKContentRuleList] = [:]
@@ -133,6 +192,7 @@ import os
         }
         probe?.noteMainThread(while: "looking up")
         use(manifest, found)
+        lookedUp()
 
         let missing = zip(manifest.lists, manifest.identifiers).filter { found[$0.1] == nil }
         if !missing.isEmpty, let directory = manifest.directory {
@@ -171,8 +231,12 @@ import os
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             let timer = Timer(timeInterval: 0.25, repeats: true) { _ in
                 MainActor.assumeIsolated {
-                    let quiet = !self.keyboardUp && UIApplication.shared.applicationState == .active
-                    guard self.lull.tick(at: .now, quiet: quiet) else { return }
+                    let now = ContinuousClock.now
+                    let quiet = Lull.isQuiet(
+                        active: UIApplication.shared.applicationState == .active, keyboardUp: self.keyboardUp,
+                        lastInput: self.lastInput, pastDeadline: self.lull.isPastDeadline(at: now), at: now, calm: self.idle
+                    )
+                    guard self.lull.tick(at: now, quiet: quiet) else { return }
                     self.ticking?.invalidate()
                     self.ticking = nil
                     done.resume()
@@ -184,11 +248,15 @@ import os
         }
     }
 
-    /// The lists found so far, in the manifest's order. They only ever grow,
-    /// which is what lets `apply` count them.
+    /// The lists found so far, in the manifest's order, onto every open page
+    /// that wants them. They only ever grow, which is what lets `apply` count them.
     private func use(_ manifest: BlockingManifest, _ found: [String: WKContentRuleList]) {
         lists = manifest.identifiers.compactMap { found[$0] }
         ready = lists.count == manifest.lists.count
+        for case let controller as WKUserContentController in wanting.keyEnumerator().allObjects
+        where wanting.object(forKey: controller)?.boolValue == true {
+            put(lists.count, on: controller)
+        }
     }
 
     @concurrent private nonisolated static func readManifest(_ url: URL) async -> BlockingManifest? {
