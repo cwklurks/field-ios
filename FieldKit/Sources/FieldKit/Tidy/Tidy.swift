@@ -246,7 +246,7 @@ public enum Tidy {
 
     /// A URL's host, lowercased, without the root's trailing dot or a leading
     /// www.; nil when there is no host at all.
-    static func host(of url: URL) -> String? {
+    public static func host(of url: URL) -> String? {
         guard var host = url.host()?.lowercased(), !host.isEmpty else { return nil }
         if host.hasSuffix(".") { host.removeLast() }
         if host.hasPrefix("www.") { host.removeFirst(4) }
