@@ -11,7 +11,7 @@ Planned 2026-09-25. The research behind every decision is in [`docs/research/`](
 | Platform | iPhone only, iOS 26.0 minimum, built with Xcode 27 (iOS 27 SDK) |
 | Code | This repo. The Mac fork (`~/code/Search`) stays untouched; portable code is copied in with its MIT notice |
 | Audience | TestFlight for friends first, App Store later (paid developer account). No private APIs, ever |
-| Name | Field, bundle ID `com.connork.field`, team Connor Klann (`H435XM227M`) |
+| Name | Field ("Field Browser" on the App Store), bundle ID `com.connork.fieldbrowser` (com.connork.field was taken), team Connor Klann (`H435XM227M`) |
 | Private mode | A separate space you deliberately enter. All hardening lives there; everyday browsing never feels locked down |
 | Tor | Built in (C tor + IPtProxy), shipping in **release 2**, after private mode is solid |
 | AI | On-device only: Apple's Foundation Models, with a non-LLM fallback. Nothing leaves the phone |

@@ -41,6 +41,7 @@ struct SettingsView: View {
                 section("Search engine") {
                     Engines(engine: $engine, custom: $custom)
                 }
+                section("About") { About() }
             }
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 22)

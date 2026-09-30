@@ -27,12 +27,15 @@ targets:
     sources:
       - path: Field
         type: syncedFolder
+      # Shown in full in Settings › About; the root file, so it never drifts.
+      - path: NOTICE.md
+        buildPhase: resources
     dependencies:
       - package: FieldKit
         product: FieldKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.connork.field
+        PRODUCT_BUNDLE_IDENTIFIER: com.connork.fieldbrowser
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
@@ -46,6 +49,8 @@ targets:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "To open pages on your own network, like a router or a printer."
         INFOPLIST_KEY_NSCameraUsageDescription: "Only when a page you open asks to use the camera."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Only when a page you open asks to use the microphone."
+        # The web view's own "Add to Photos" on a long-pressed image; without it iOS ends the app.
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Only to save a picture you chose to keep."
 
   FieldTests:
     type: bundle.unit-test
@@ -58,7 +63,7 @@ targets:
       - target: Field
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.connork.field.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.connork.fieldbrowser.tests
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: "YES"
 
@@ -75,7 +80,7 @@ targets:
       - target: Field
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.connork.field.perftests
+        PRODUCT_BUNDLE_IDENTIFIER: com.connork.fieldbrowser.perftests
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: "YES"
         # XCTestCase's initialisers are nonisolated; tests mark @MainActor themselves.
