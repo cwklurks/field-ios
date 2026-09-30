@@ -55,7 +55,7 @@ Paste into App Store Connect's App Review Information.
 
 > Sign-in is not required. Field has no account, no sign-up and no sign-in screen; it opens straight into a browser.
 >
-> To reach the main features: type an address or a few words in the bottom bar and press Return. Swipe up on the bar for the tab grid; swipe sideways on the bar to change tabs. Long-press the bar for forward and back history, the per-site shield, Copy, Share and Capture Page. Settings is on the grid's row, and About › Built on Search shows the app's notices in full.
+> To reach the main features: type an address or a few words in the bottom bar and press Return. Swipe up on the bar for the tab grid; swipe sideways on the bar to change tabs. Long-press the back button for forward and back history; long-press the address for Save, Copy, Share, Capture Page and the per-site blocking switch. Settings is on the grid's row, and About › Built on Search shows the app's notices in full.
 >
 > Ad and tracker blocking is on by default, and can be turned off for one site from the bar's long press.
 >
