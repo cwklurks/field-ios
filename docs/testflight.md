@@ -47,7 +47,7 @@ For friends. Paste the list as it is.
 
 ## Feedback email
 
-CONTACT_EMAIL
+fieldbrowser.app@gmail.com
 
 ## Beta App Review notes
 

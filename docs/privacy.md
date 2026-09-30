@@ -71,4 +71,4 @@ If this policy changes, the new version is published with the app and dated at t
 
 ## Contact
 
-Questions about this policy: CONTACT_EMAIL.
+Questions about this policy: fieldbrowser.app@gmail.com.
