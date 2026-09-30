@@ -42,6 +42,12 @@ final class CriticTour: XCTestCase {
         return html
     }()
 
+    /// A short page of our own, with the heartbeat.
+    static func small(_ body: String) -> String {
+        "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><title>Field test</title>"
+            + "<body style='font:20px -apple-system;padding:120px 24px'>\(heartbeat)\(body)"
+    }
+
     /// A 2-point square at the left edge that never stops changing, so the
     /// simulator's recorder never goes idle and drops the first frames of
     /// a motion. Masked out of the analysis.
@@ -361,6 +367,201 @@ final class CriticTour: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
         try await pause(2)
     }
+
+    // MARK: Round 5: M3 and M4
+
+    /// The address's long press, then one of its items (by the start of its title).
+    @MainActor private func addressMenu(_ app: XCUIApplication, choose item: String?) async throws {
+        try app.required("bar.address", timeout: 10).press(forDuration: 0.8)
+        try await pause(1.2)
+        guard let item else { return }
+        let button = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", item)).firstMatch
+        XCTAssert(button.waitForExistence(timeout: 3), "no \(item) in the address's menu")
+        button.tap()
+    }
+
+    /// 13: the long press, dismissed by a tap outside; Share, dismissed;
+    /// Copy; then a plain tap still opens the field.
+    @MainActor func testAddressMenu() async throws {
+        let app = launch([], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(2.5)
+        try await addressMenu(app, choose: nil)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        try await pause(1.5)
+        try await addressMenu(app, choose: "Share")
+        try await pause(2)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+        try await pause(1.5)
+        try await addressMenu(app, choose: "Copy")
+        try await pause(1.5)
+        app.element("bar.address").tap()
+        try await pause(1.5)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        try await pause(2)
+    }
+
+    /// 14: Save from the long press, the sheet with its suggested folder;
+    /// star, another folder, Done. Then Edit Saved Page, closed by a swipe.
+    @MainActor func testSaveSheet() async throws {
+        let app = launch(["-FieldSeedSaved", "60"], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(4)
+        try await addressMenu(app, choose: "Save")
+        try await pause(2)
+        try app.required("savesheet.star").tap()
+        try await pause(1.2)
+        app.element("savesheet.folder.none").tap()
+        try await pause(1.2)
+        app.element("savesheet.done").tap()
+        try await pause(1.8)
+        try await addressMenu(app, choose: "Edit Saved Page")
+        try await pause(2)
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)),
+                  withVelocity: 600, thenHoldForDuration: 0)
+        try await pause(2)
+    }
+
+    /// 15: a cold blank tab with starred pages: the shelf rises with the
+    /// keyboard; a half drag held and let go; a key and back; all the way down.
+    @MainActor func testStarredCold() async throws {
+        let app = launch(["-FieldSeedTabs", "0", "-FieldSeedSaved", "60"])
+        _ = app.element("starred").waitForExistence(timeout: 10)
+        try await pause(2.5)
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        top.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72)),
+                  withVelocity: 200, thenHoldForDuration: 0.8)
+        try await pause(2)
+        if !app.keyboards.firstMatch.exists { app.element("bar.address").tap() }
+        try await pause(1.5)
+        app.typeText("w")
+        try await pause(1.2)
+        app.typeText(XCUIKeyboardKey.delete.rawValue)
+        try await pause(1.5)
+        top.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)),
+                  withVelocity: 250, thenHoldForDuration: 0.3)
+        try await pause(2)
+    }
+
+    /// 16: + in the grid with starred pages: the shelf on the new tab; a
+    /// starred page opened from it.
+    @MainActor func testStarredNewTab() async throws {
+        let app = launch(["-FieldSeedTabs", "4", "-FieldSeedSaved", "60"], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(3)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        try app.required("tabs.new").tap()
+        try await pause(2.5)
+        try app.required("starred.tile.0").tap()
+        try await pause(3)
+    }
+
+    /// 17: Saved from the grid: search, filters, a folder, rows swiped each
+    /// way, a flick, and a page opened as the sheet goes.
+    @MainActor func testSavedList() async throws {
+        let app = launch(["-FieldSeedTabs", "4", "-FieldSeedSaved", "60"], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(3)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        try app.required("tabs.saved").tap()
+        try await pause(1.8)
+        try app.required("saved.search").tap()
+        try await pause(1.2)
+        for key in ["p", "a", "s"] {
+            app.typeText(key)
+            try await pause(0.5)
+        }
+        try await pause(1)
+        app.buttons["Clear"].firstMatch.tap()
+        try await pause(1.2)
+        try app.required("saved.filter.later").tap()
+        try await pause(1.5)
+        app.element("saved.filter.all").tap()
+        try await pause(1.5)
+        try app.required("saved.folder.Work").tap()
+        try await pause(1.5)
+        app.element("saved.filter.all").tap()
+        try await pause(1.5)
+        let list = app.element("saved.list")
+        list.swipeUp(velocity: .fast)
+        try await pause(2)
+        list.swipeDown(velocity: .fast)
+        try await pause(2)
+        try app.required("saved.row.1").swipeLeft()
+        try await pause(1.5)
+        app.element("saved.row.1").swipeRight()
+        try await pause(1.2)
+        app.element("saved.row.2").swipeRight(velocity: .slow)
+        try await pause(1.5)
+        try app.required("saved.row.3").tap()
+        try await pause(3.5)
+    }
+
+    /// 18: a script's popup: the toast and its Open.
+    @MainActor func testPopupToast() async throws {
+        let app = launch([], open: server.url("/popup"))
+        _ = try app.required("page", timeout: 10)
+        try await pause(3)
+        app.webViews.buttons.firstMatch.tap()
+        try await pause(1.2)
+        let open = app.element("toast.offer")
+        XCTAssert(open.waitForExistence(timeout: 2), "no popup toast")
+        open.tap()
+        try await pause(3)
+    }
+
+    /// 19: a page that script-jumps to the App Store: the toast, twice.
+    @MainActor func testAppStoreToast() async throws {
+        let app = launch([], open: server.url("/jump"))
+        _ = try app.required("page", timeout: 10)
+        try await pause(8)
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// 20: the shield off for the page's site and back on, each a reload.
+    @MainActor func testShieldToggle() async throws {
+        let app = launch([], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(3)
+        try await addressMenu(app, choose: "Turn Off Blocking")
+        try await pause(3)
+        try await addressMenu(app, choose: "Turn On Blocking")
+        try await pause(3)
+    }
+
+    /// 21: an address the lists stop outright, then "Load anyway".
+    @MainActor func testLoadAnyway() async throws {
+        let app = launch([], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        // Time for the lists to compile on a first launch.
+        try await pause(10)
+        app.element("bar.address").tap()
+        try await pause(1.2)
+        app.typeText("https://pagead2.googlesyndication.com/pagead/show_ads.js\n")
+        let button = app.buttons["Load anyway"]
+        XCTAssert(button.waitForExistence(timeout: 8), "not stopped by the blocker")
+        try await pause(2)
+        button.tap()
+        try await pause(5)
+    }
+
+    /// 22: a real page with display ads (CRITIC_URL), scrolled, to see
+    /// the lists at work. Run again with the shield off to compare.
+    @MainActor func testAds() async throws {
+        let url = URL(string: ProcessInfo.processInfo.environment["CRITIC_URL"] ?? "https://www.cnn.com/")!
+        let app = launch([], open: url)
+        _ = try app.required("page", timeout: 15)
+        try await pause(12)
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        let high = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        for _ in 0..<6 {
+            low.press(forDuration: 0.05, thenDragTo: high, withVelocity: 400, thenHoldForDuration: 0.4)
+            try await pause(2.5)
+        }
+    }
 }
 
 /// A one-finger drag through several points, which XCUICoordinate can't
@@ -467,6 +668,12 @@ final class CriticServer: @unchecked Sendable {
         case "/article":
             ("200 OK", "text/html; charset=utf-8", Data(Article.html.replacingOccurrences(of: "<body>", with: "<body>" + CriticTour.heartbeat).utf8))
         case "/tone": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.tonePage.utf8))
+        case "/popup": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.small(
+            "<button style='font-size:22px;padding:14px 20px' onclick=\"window.open('https://example.org/')\">Open a window</button>").utf8))
+        case "/jump": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.small(
+            "<p>Jumping to the App Store in a moment.</p><script>"
+            + "setTimeout(function(){location.href='https://apps.apple.com/us/app/id284882215'},1500);"
+            + "setTimeout(function(){location.href='itms-apps://apps.apple.com/app/id284882215'},4500)</script>").utf8))
         case let path where path.hasPrefix("/figure/"):
             ("200 OK", "image/svg+xml", Data(Article.svg(Int(path.dropFirst(8).prefix { $0.isNumber }) ?? 0).utf8))
         default: ("404 Not Found", "text/plain", Data("Not found".utf8))
