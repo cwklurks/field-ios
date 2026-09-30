@@ -55,6 +55,9 @@ import os
     @ObservationIgnored private var pending: URL?
     @ObservationIgnored private var failed: URL?
     @ObservationIgnored private var unpainted = true
+    /// A page has committed over a failure: its message goes when the new
+    /// page paints, since at commit WebKit still shows the one from before.
+    @ObservationIgnored private var recovering = false
     @ObservationIgnored private var watching: [NSKeyValueObservation] = []
     /// The web view's, kept: `web.configuration` makes a copy on every call.
     @ObservationIgnored private var content: WKUserContentController?
@@ -249,8 +252,8 @@ import os
         }
     }
 
-    /// A failure stays over the page it failed on until the new one commits
-    /// (didCommit), so the page from before it never shows through.
+    /// A failure stays over the page it failed on until the new one paints
+    /// (recover), so the page from before it never shows through.
     func load(_ url: URL) {
         self.url = url
         guard web != nil else {
@@ -289,6 +292,19 @@ import os
         Signpost.log.emitEvent(Signpost.firstPaint)
         revival.painted()
         reveal()
+        recover()
+    }
+
+    /// The failure's message fades off the page that replaced it; the fade
+    /// covers the frame between the paint and the screen, as reveal's does.
+    private func recover() {
+        guard recovering else { return }
+        recovering = false
+        withAnimation(Motion.quick) {
+            failure = nil
+            failed = nil
+            blocked = nil
+        }
     }
 
     /// In quickly: the page is there, and the fade covers only the frame
@@ -333,6 +349,7 @@ import os
 
     private func fail(_ error: Error) {
         settled()
+        recovering = false
         if let stopped = ContentBlocking.blockedURL(from: error) {
             failed = stopped
             url = stopped
@@ -486,9 +503,7 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        failure = nil
-        failed = nil
-        blocked = nil
+        if failure != nil { recovering = true }
         asked = false
         settled()
         committed()
@@ -499,6 +514,7 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
         settled()
         // A page that never paints anything but its background still comes in.
         reveal()
+        recover()
         guard let url = webView.url, ["http", "https"].contains(url.scheme?.lowercased()) else { return }
         history.visited(url, title: webView.title ?? "")
         finished(url)

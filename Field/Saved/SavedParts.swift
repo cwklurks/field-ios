@@ -174,3 +174,81 @@ struct FolderPicker: View {
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 }
+
+/// Whether a row's swipe actions were open when the last touch came down.
+/// On iOS that first tap only closes them, but SwiftUI's List lets a row's
+/// Button have it too, so rows ask here before they open anything.
+@MainActor final class SwipeWatch {
+    private(set) var wasOpen = false
+    private weak var list: UICollectionView?
+
+    fileprivate func watch(_ list: UICollectionView) {
+        guard self.list !== list else { return }
+        self.list = list
+        let down = TouchDown { [weak self, weak list] in
+            guard let self, let list else { return }
+            wasOpen = list.visibleCells.contains { $0.configurationState.isSwiped }
+            // Nothing else closes them, since the row's Button has the
+            // touch. Into editing and out again, in one turn, does.
+            if wasOpen {
+                list.isEditing = true
+                list.isEditing = false
+            }
+        }
+        list.addGestureRecognizer(down)
+    }
+}
+
+extension View {
+    /// Tells `watch` which list this row is in.
+    func swipeWatch(_ watch: SwipeWatch) -> some View {
+        background(SwipeProbe(watch: watch).accessibilityHidden(true))
+    }
+}
+
+private struct SwipeProbe: UIViewRepresentable {
+    let watch: SwipeWatch
+
+    func makeUIView(context: Context) -> Probe { Probe(watch: watch) }
+    func updateUIView(_ view: Probe, context: Context) {}
+
+    final class Probe: UIView {
+        let watch: SwipeWatch
+
+        init(watch: SwipeWatch) {
+            self.watch = watch
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+        }
+
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            var up = superview
+            while let view = up, !(view is UICollectionView) { up = view.superview }
+            if let list = up as? UICollectionView { watch.watch(list) }
+        }
+    }
+}
+
+/// Sees every touch come down and never takes one.
+private final class TouchDown: UIGestureRecognizer, UIGestureRecognizerDelegate {
+    private let began: () -> Void
+
+    init(began: @escaping () -> Void) {
+        self.began = began
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesEnded = false
+        delegate = self
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        began()
+        state = .failed
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+}

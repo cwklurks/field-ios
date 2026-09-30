@@ -23,8 +23,13 @@ struct BrowserView: View {
                 .ignoresSafeArea(.container)
                 .ignoresSafeArea(.keyboard)
 
-            if let failure = browser.tab.failure, !browser.tabs.gridShown {
-                Trouble(message: failure, action: browser.tab.blocked == nil ? "Try again" : "Load anyway", retry: browser.tab.retry)
+            // Always there, so the message has a parent to fade out of when
+            // the page that replaced it paints (Tab.recover).
+            ZStack {
+                if let failure = browser.tab.failure, !browser.tabs.gridShown {
+                    Trouble(message: failure, action: browser.tab.blocked == nil ? "Try again" : "Load anyway", retry: browser.tab.retry)
+                        .transition(.opacity)
+                }
             }
 
             if !browser.tabs.gridShown {

@@ -22,6 +22,7 @@ struct SavedView: View {
     @State private var moving: SavedPage?
     @State private var renaming: String?
     @State private var newName = ""
+    @State private var swipes = SwipeWatch()
     @Namespace private var slide
     @FocusState private var searching: Bool
 
@@ -128,7 +129,10 @@ struct SavedView: View {
                 Section {
                     label("Folders")
                     ForEach(folders, id: \.self) { folder in
-                        FolderRow(name: folder, count: store.saved.count(in: folder)) { show(.folder(folder)) }
+                        FolderRow(name: folder, count: store.saved.count(in: folder)) {
+                            if !swipes.wasOpen { show(.folder(folder)) }
+                        }
+                            .swipeWatch(swipes)
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", systemImage: "trash", role: .destructive) {
                                     store.deleteFolder(folder)
@@ -150,7 +154,9 @@ struct SavedView: View {
             Section {
                 if !folders.isEmpty, !pages.isEmpty { label("Pages") }
                 ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                    PageRow(page: page) { onOpen(page.url) }
+                    // A tap while another row's actions are open only closes them.
+                    PageRow(page: page) { if !swipes.wasOpen { onOpen(page.url) } }
+                        .swipeWatch(swipes)
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button(page.starred ? "Unstar" : "Star", systemImage: page.starred ? "star.slash" : "star") {
                                 store.star(page.id, !page.starred)

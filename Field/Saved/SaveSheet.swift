@@ -114,8 +114,11 @@ struct SaveSheet: View {
             HStack {
                 Button {
                     // Word and star change on the same frame, not on two
-                    // timelines of their own.
-                    starred.toggle()
+                    // timelines of their own, and with no fade: the
+                    // sheet's own transaction would otherwise carry one.
+                    var cut = Transaction()
+                    cut.disablesAnimations = true
+                    withTransaction(cut) { starred.toggle() }
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: starred ? "star.fill" : "star")

@@ -8,7 +8,6 @@ struct Segmented<Option: Hashable>: View {
     @Binding var selection: Option
     @Namespace private var slide
 
-
     var body: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
@@ -19,21 +18,21 @@ struct Segmented<Option: Hashable>: View {
                         .ramp(option == selection ? .label : .caption)
                         .foregroundStyle(option == selection ? Palette.ink : Palette.muted)
                         .frame(maxWidth: .infinity, minHeight: 36)
-                        .background {
-                            if option == selection {
-                                RoundedRectangle.corner(Radius.chip)
-                                    .fill(segmentLift)
-                                    .lift(.chip)
-                                    .matchedGeometryEffect(id: "chosen", in: slide)
-                            }
-                        }
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .matchedGeometryEffect(id: option, in: slide)
                 .accessibilityAddTraits(option == selection ? .isSelected : [])
-                // The lift slides under the others, never over their names.
-                .zIndex(option == selection ? 0 : 1)
             }
+        }
+        // One lift, always there, under all the names: it slides to the one
+        // picked. Made anew in each place, it faded out and in as it went, and
+        // for a few frames nothing looked chosen.
+        .background {
+            RoundedRectangle.corner(Radius.chip)
+                .fill(segmentLift)
+                .lift(.chip)
+                .matchedGeometryEffect(id: selection, in: slide, isSource: false)
         }
         .padding(2)
         .background(Palette.wash, in: .corner(Radius.row))
