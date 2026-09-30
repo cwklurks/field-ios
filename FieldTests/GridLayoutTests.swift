@@ -93,8 +93,7 @@ struct GridLayoutTests {
 
     /// After a close the cards after it move back one place, and after a
     /// reopen on one. Those staying on their row slide along it; those
-    /// changing row hop, fading out of one place and into the other, so no
-    /// card passes through another. A card new to the list grows in.
+    /// changing row hop over them. A card new to the list grows in.
     @Test func cardsSlideAlongTheirRowOrHopToAnother() {
         #expect(GridLayout.move(from: 2, to: 2) == .stay)
         // Closed at 1.

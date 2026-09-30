@@ -105,6 +105,17 @@ enum AddressField {
             proposing ? [] : super.selectionRects(for: range)
         }
 
+        /// While set, a resign asked for from outside (UIKit's, as a swiped
+        /// keyboard finishes) is handed to it to carry out when it chooses.
+        var resignLater: ((@escaping () -> Void) -> Void)?
+
+        override func resignFirstResponder() -> Bool {
+            guard let later = resignLater else { return super.resignFirstResponder() }
+            resignLater = nil
+            later { [weak self] in _ = self?.resignFirstResponder() }
+            return true
+        }
+
         override func paste(_ sender: Any?) {
             pasting = true
             defer { pasting = false }

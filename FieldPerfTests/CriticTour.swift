@@ -143,6 +143,44 @@ final class CriticTour: XCTestCase {
         try await pause(2)
     }
 
+    /// 3c: not Field. The same half drag and release in Messages, as the
+    /// system's own reference for what the keyboard does on the lift.
+    @MainActor func testReferenceMessages() async throws {
+        let app = XCUIApplication(bundleIdentifier: "com.apple.MobileSMS")
+        app.activate()
+        try await pause(1.5)
+        // The conversation opens with its field focused.
+        app.cells.firstMatch.tap()
+        try await pause(2)
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+        let middle = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+        top.press(forDuration: 0.1, thenDragTo: middle, withVelocity: 200, thenHoldForDuration: 0.8)
+        try await pause(2)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.93)).tap()
+        try await pause(1.5)
+        let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
+        top.press(forDuration: 0.1, thenDragTo: bottom, withVelocity: 250, thenHoldForDuration: 0.3)
+        try await pause(2)
+    }
+
+    /// 3d: a flick down the keyboard; then a short drag let go while still
+    /// moving.
+    @MainActor func testFlickDown() async throws {
+        let app = launch([], open: server.url("/article"))
+        let address = try app.required("bar.address", timeout: 10)
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(2.5)
+        address.tap()
+        try await pause(1.5)
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)), withVelocity: 1500, thenHoldForDuration: 0)
+        try await pause(2)
+        address.tap()
+        try await pause(1.5)
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)), withVelocity: 600, thenHoldForDuration: 0)
+        try await pause(2)
+    }
+
     /// 4: a slow drag up and down, then flicks.
     @MainActor func testScroll() async throws {
         let app = launch([], open: server.url("/article"))
@@ -203,6 +241,24 @@ final class CriticTour: XCTestCase {
         try await pause(1.5)
         bar.swipeLeft(velocity: .fast)
         try await pause(2)
+    }
+
+    /// 7b: up on the bar opens the grid, Done closes it; then a slower drag up.
+    @MainActor func testBarSwipeUp() async throws {
+        let app = launch(["-FieldSeedTabs", "8"], open: server.url("/article"))
+        let bar = try app.required("bar", timeout: 10)
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(3)
+        bar.swipeUp(velocity: .default)
+        _ = try app.required("tabs.grid")
+        try await pause(1.5)
+        app.element("tabs.done").tap()
+        try await pause(1.5)
+        let from = bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -220)), withVelocity: 300, thenHoldForDuration: 0.2)
+        try await pause(1.5)
+        app.element("tabs.done").tap()
+        try await pause(1.5)
     }
 
     /// 8: a cold launch on a blank tab, through to the keyboard.

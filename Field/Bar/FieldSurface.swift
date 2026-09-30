@@ -45,17 +45,17 @@ final class FieldSurface: UIViewController {
     /// How tall the keyboard is when it's all the way up.
     private var keyboardHeight: CGFloat = 0
     /// A finger taking the keyboard down: the field turning into the bar,
-    /// held at as far as the keyboard has gone (KeyboardDrag).
-    private var dragging: UIViewPropertyAnimator?
+    /// held at as far as the keyboard has gone (KeyboardDrag), on the
+    /// surface's own stopped clock (beginDragging).
+    private var dragging = false
+    /// What the scrub animates, to leave where it is when it stops.
+    private var scrubbed: [(layer: CALayer, key: String, path: String)] = []
+    /// UIKit's resign, held back (holdFocus).
+    private var resignDue: (() -> Void)?
+    private var lettingGo = false
     /// What the rider stands on (see pin).
     private var onKeyboard: NSLayoutConstraint?
     private var onGround: NSLayoutConstraint?
-    /// A swipe let the keyboard go, and UIKit takes it away in a frame or
-    /// two: the surface comes down on its own from where the finger left
-    /// it, rather than jumping with the keyboard.
-    private var released = false
-    /// Set while the rider is moved without the surface being laid out.
-    private var settling = false
     /// Under the bar, for glass; nil until read.
     private var pageTone: ColorScheme?
     /// The tab the tone was last read for.
@@ -168,6 +168,9 @@ final class FieldSurface: UIViewController {
         coordinator.onEdited = { [weak self] in self?.edited() }
         coordinator.onRefused = { [weak self] in self?.refuse() }
         coordinator.onEnded = { [weak self] in
+            // A held focus let go is the close already under way, or the
+            // field wanted again: nothing for the flow.
+            guard self?.lettingGo != true else { return }
             // After the keyboard has had its say: a swipe that took the
             // keyboard away closes on the keyboard's own curve.
             DispatchQueue.main.async { self?.handle(.editingEnded) }
@@ -197,7 +200,7 @@ final class FieldSurface: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         scrim.contentSize = scrim.bounds.size
-        if dragging == nil, !settling { place() }
+        if !dragging { place() }
         // A finger taking the keyboard down takes the field with it, turning
         // it into the bar as far as the keyboard has gone, and the dimming
         // going with it. Where the finger lifts, UIKit decides whether the
@@ -205,8 +208,13 @@ final class FieldSurface: UIViewController {
         guard flow.phase == .field, scrim.isTracking, Keyboard.up else { return }
         let gone = KeyboardDrag.gone(height: view.keyboardLayoutGuide.layoutFrame.height,
                                      full: keyboardHeight, rest: view.safeAreaInsets.bottom)
-        if dragging == nil, gone > 0 { beginDragging() }
-        dragging?.fractionComplete = gone
+        if !dragging, gone > 0 { beginDragging() }
+        guard dragging else { return }
+        surface.layer.timeOffset = min(gone, 0.999)
+        scrim.alpha = 1 - gone
+        // Brought all the way back with the finger still down: the field
+        // again now, its own text in the address's place, not at the lift.
+        if gone == 0 { springBack(on: .quick) }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -317,6 +325,7 @@ final class FieldSurface: UIViewController {
     }
 
     private func handle(_ event: FieldFlow.Event) {
+        if event == .open || event == .tap(collapsed: false) || event == .tap(collapsed: true) { letFocusGo() }
         for effect in flow.handle(event) {
             switch effect {
             case .expand: browser.bar.expand()
@@ -332,7 +341,7 @@ final class FieldSurface: UIViewController {
     /// it early, a page's own field) moves them. With the keyboard down the
     /// two are the same place, so the switch is unseen.
     private func pin() {
-        let keyboard = flow.phase != .bar && !resting && !released
+        let keyboard = flow.phase != .bar && !resting
         // Neither is active before the first pin.
         guard (keyboard ? onKeyboard : onGround)?.isActive == false else { return }
         onKeyboard?.isActive = false
@@ -344,7 +353,7 @@ final class FieldSurface: UIViewController {
         guard !Keyboard.warming else { return }
         rising = SurfaceMotion.Curve(keyboard: note) ?? rising
         if entering { enter() }
-        if dragging != nil { springBack(on: SurfaceMotion.Curve(keyboard: note) ?? .glide) }
+        if dragging { springBack(on: SurfaceMotion.Curve(keyboard: note) ?? .glide) }
         // The keyboard comes up under a field that started ahead of it, and
         // takes over the rise on its own curve.
         if flow.phase == .field, surface.transform != .identity {
@@ -444,7 +453,6 @@ final class FieldSurface: UIViewController {
         // spring's first frame barely moves. It's done before the keyboard
         // arrives to carry it. The surface also starts up, ahead of the
         // keyboard (see ahead).
-        released = false
         SurfaceMotion.quickFromNextFrame { [self] in
             place()
             rider.transform = .identity
@@ -523,7 +531,7 @@ final class FieldSurface: UIViewController {
         // the field's text, starting where that text is. Set up before the
         // keyboard is told to go: its animation lays the surface out, and has
         // to start from here.
-        let dragged = dragging != nil
+        let dragged = dragging
         stopDragging()
         let bar = surface.bar
         if dragged { bar.say(goingTo ?? page.url) } else { showAddress() }
@@ -535,13 +543,18 @@ final class FieldSurface: UIViewController {
         let field = surface.field
         let keyboard = field.isFirstResponder && Keyboard.up
         // A swipe's keyboard is UIKit's to put away: taking focus from the
-        // field under it would have it jump back up for a frame first. And
-        // UIKit takes it away in a frame or two, so the surface leaves it
-        // and comes down on its own, from where the finger left it.
+        // field under it would have it jump back up for a frame first. UIKit
+        // finishes it on a short curve of its own, which carries the rider
+        // down with it (it lays the rider out inside that animation). Taking
+        // that animation off the rider would end UIKit's early, and the
+        // keyboard, drawn by another process, would vanish in a frame.
         let swiped = hiding != nil && scrim.isTracking
         let curve = swiped ? .glide : hiding ?? (keyboard ? rising : nil) ?? .glide
         hiding = nil
-        if swiped { release() }
+        if swiped {
+            trailKeyboard()
+            holdFocus()
+        }
 
         // The rows go in the frame the address comes, so no frame has both
         // (a row can be the very place Go is going to), and the surface's
@@ -562,8 +575,8 @@ final class FieldSurface: UIViewController {
             guard let self else { return }
             handle(.landed(number))
             guard flow.phase == .bar else { return }
-            released = false
             scrim.isHidden = true
+            letFocusGo()
             if surface.field.isFirstResponder { surface.field.resignFirstResponder() }
             sampler.look()
         }
@@ -603,39 +616,94 @@ final class FieldSurface: UIViewController {
     /// address sliding home and the dimming lifting with it.
     private func beginDragging() {
         UIView.performWithoutAnimation { showAddress() }
-        let animator = UIViewPropertyAnimator(duration: 1, curve: .linear) { [self] in
+        // Not a paused UIViewPropertyAnimator: while one is paused, UIKit
+        // ends its own finish of the keyboard's dismissal at once, and the
+        // keyboard, drawn by another process, vanishes in a frame. A plain
+        // animation on a stopped clock instead, which the scrub moves.
+        let layer = surface.layer
+        layer.speed = 0
+        layer.timeOffset = 0
+        UIView.animate(withDuration: 1, delay: 0, options: [.curveLinear, .overrideInheritedDuration, .overrideInheritedCurve, .overrideInheritedOptions]) { [self] in
             place(.closing)
             surface.bar.address.transform = .identity
             rows.view.alpha = 0
-            scrim.alpha = 0
         }
-        animator.pauseAnimation()
-        dragging = animator
+        scrubbed = Self.animated(in: layer)
+        dragging = true
     }
 
-    /// Off the keyboard and onto the ground, drawn where it is now, for the
-    /// close to bring it the rest of the way down.
-    private func release() {
-        let from = rider.layer.presentation()?.frame.maxY ?? rider.frame.maxY
-        rider.layer.removeAllAnimations()
-        released = true
-        pin()
-        // Laid out now, and not the surface: the close's own animation does.
-        settling = true
-        UIView.performWithoutAnimation { view.layoutIfNeeded() }
-        settling = false
-        // Not in the keyboard's animation, which this is called inside.
-        UIView.performWithoutAnimation {
-            rider.transform = CGAffineTransform(translationX: 0, y: from - rider.frame.maxY)
+    /// UIKit gives the rider a short animation for the keyboard's finish,
+    /// but the keyboard itself, drawn by another process, takes longer: the
+    /// surface goes down on the same curve stretched to the keyboard's time,
+    /// so it stays on the keyboard's top edge rather than ducking behind it.
+    /// Two additive animations: one undoing the rider's, one redoing it
+    /// slower. The rider's own is left alone (see showBar).
+    private func trailKeyboard() {
+        guard let ride = rider.layer.animation(forKey: "position") as? CABasicAnimation,
+              let from = (ride.fromValue as? NSValue)?.cgPointValue else { return }
+        let dy = ride.isAdditive ? from.y : from.y - rider.layer.position.y
+        guard dy != 0 else { return }
+        for (offset, duration) in [(-dy, ride.duration), (dy, max(ride.duration, Self.keyboardFinish))] {
+            guard let trail = ride.copy() as? CABasicAnimation else { return }
+            trail.delegate = nil
+            trail.keyPath = "transform.translation.y"
+            trail.isAdditive = true
+            trail.fromValue = offset
+            trail.toValue = 0
+            trail.duration = duration
+            surface.layer.add(trail, forKey: offset == -dy ? "undoRide" : "ride")
         }
     }
+
+    /// UIKit takes focus from the field as soon as its own short finish of a
+    /// swiped keyboard is done, and the keyboard, drawn by another process
+    /// and still on its way down, vanishes then. So the field keeps focus
+    /// for as long as the keyboard takes (keyboardFinish).
+    private func holdFocus() {
+        surface.field.resignLater = { [weak self] resign in
+            self?.resignDue = resign
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.keyboardFinish) { self?.letFocusGo() }
+        }
+    }
+
+    /// The held focus goes now: its time is up, or the field is wanted again
+    /// (before the flow hears of it, so the keyboard's notice can't close it).
+    private func letFocusGo() {
+        surface.field.resignLater = nil
+        guard let resign = resignDue else { return }
+        resignDue = nil
+        lettingGo = true
+        resign()
+        lettingGo = false
+    }
+
+    /// How long the keyboard, drawn in another process, takes to finish
+    /// going down after a swipe: about seven frames, as in Messages, where
+    /// UIKit gives the rider a few.
+    static let keyboardFinish: CFTimeInterval = 7.0 / 60
 
     /// Leaves everything where the finger had it.
     private func stopDragging() {
-        guard let dragging else { return }
-        dragging.stopAnimation(false)
-        dragging.finishAnimation(at: .current)
-        self.dragging = nil
+        guard dragging else { return }
+        dragging = false
+        for (layer, key, path) in scrubbed {
+            if let value = layer.presentation()?.value(forKeyPath: path) { layer.setValue(value, forKeyPath: path) }
+            layer.removeAnimation(forKey: key)
+        }
+        scrubbed = []
+        let layer = surface.layer
+        layer.speed = 1
+        layer.timeOffset = 0
+        layer.beginTime = 0
+    }
+
+    /// Every animation under `layer`, with the layer it's on and what it moves.
+    private static func animated(in layer: CALayer) -> [(layer: CALayer, key: String, path: String)] {
+        let own = (layer.animationKeys() ?? []).compactMap { key -> (layer: CALayer, key: String, path: String)? in
+            guard let path = (layer.animation(forKey: key) as? CAPropertyAnimation)?.keyPath else { return nil }
+            return (layer, key, path)
+        }
+        return own + (layer.sublayers ?? []).flatMap(animated(in:))
     }
 
     /// The finger let the keyboard come back: the field again, its own text
@@ -800,7 +868,7 @@ extension FieldSurface: UIScrollViewDelegate {
     /// The finger lifted and UIKit is keeping the keyboard, which it says
     /// by not hiding it (keyboardHiding comes first, when it goes).
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        guard dragging != nil, flow.phase == .field else { return }
+        guard dragging, flow.phase == .field else { return }
         springBack(on: rising ?? .glide)
     }
 }

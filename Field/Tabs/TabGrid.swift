@@ -36,6 +36,9 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         super.init(frame: .zero)
         backgroundColor = Palette.UI.ground
         accessibilityIdentifier = "tabs.grid"
+        // Not greyed under Settings' sheet, only to come back in one frame
+        // as it leaves.
+        tintAdjustmentMode = .normal
 
         scroll.delegate = self
         scroll.alwaysBounceVertical = true
@@ -115,6 +118,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// goes in the frame the bar takes its place.
     func showRow(_ shown: Bool, now: Bool = false) {
         row.layer.removeAllAnimations()
+        for view in row.subviews { view.alpha = 1 }
         if now {
             row.alpha = shown ? 1 : 0
         } else if shown {
@@ -123,6 +127,15 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         } else {
             UIView.animate(withDuration: 0.08, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) { self.row.alpha = 0 }
         }
+    }
+
+    /// The row's buttons and count go now, and its ground stays over the
+    /// cards under it: the bar, turning into the field, takes their place
+    /// as the grid fades.
+    func clearRow() {
+        row.layer.removeAllAnimations()
+        row.alpha = 1
+        for view in row.subviews { view.alpha = 0 }
     }
 
     /// Where a tab's picture is, in this view's coordinates.
@@ -163,9 +176,9 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
 
     /// Makes, places and lets go of cards around what's on screen. After a
     /// close or a reopen (see reflow), `was` has each card's index before,
-    /// and each goes from where it is on screen (see GridLayout.move): along
-    /// its row, or out and back in at its place on another, and one new to
-    /// the list grows in.
+    /// and each goes from where it is on screen straight to its new place,
+    /// one card each, in one spring: along its row, or over the others to
+    /// another (see GridLayout.move). One new to the list grows in.
     func layoutCards(was: [ObjectIdentifier: Int]? = nil) {
         guard bounds.width > 0, !reflowing else { return }
         let layout = layout
@@ -175,6 +188,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         var keep = Set<ObjectIdentifier>()
         var moves: [(TabCard, CGRect)] = []
         var growing: [TabCard] = []
+        var rising: [TabCard] = []
         for i in wanted {
             let tab = list[i]
             let key = ObjectIdentifier(tab)
@@ -195,17 +209,13 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
                     Self.shrink(card)
                     growing.append(card)
                 }
-            } else if move == .hop {
-                if scroll.bounds.intersects(card.frame) { fadeAway(copyOf: card) }
-                UIView.performWithoutAnimation {
-                    Self.place(card, at: frame)
-                    Self.shrink(card)
-                }
-                growing.append(card)
             } else {
+                // Changing row, it goes over those sliding along theirs.
+                if move == .hop { rising.append(card) }
                 moves.append((card, frame))
             }
         }
+        for card in rising { scroll.bringSubviewToFront(card) }
         // Under those making room for them.
         for card in growing { scroll.sendSubviewToBack(card) }
         if !moves.isEmpty {
@@ -252,24 +262,6 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     private static func shrink(_ card: TabCard) {
         card.alpha = 0
         card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
-    }
-
-    /// A picture of the card as it is, shrinking and fading where it is,
-    /// under the others, while the card itself goes on to another place.
-    private func fadeAway(copyOf card: TabCard) {
-        guard let copy = card.snapshotView(afterScreenUpdates: false) else { return }
-        copy.isUserInteractionEnabled = false
-        copy.bounds = card.bounds
-        copy.center = card.center
-        copy.transform = card.transform
-        copy.alpha = card.alpha
-        scroll.insertSubview(copy, at: 0)
-        UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
-            copy.alpha = 0
-            copy.transform = card.transform.scaledBy(x: 0.9, y: 0.9)
-        } completion: { _ in
-            copy.removeFromSuperview()
-        }
     }
 
     private func isLoose(_ card: TabCard) -> Bool {

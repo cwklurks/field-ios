@@ -453,7 +453,7 @@ final class Stage: UIView {
         let source = grid.pictureFrame(of: tab).flatMap { bounds.intersects($0) ? $0 : nil }
         if field {
             // The bar in the row's place, turning into the field.
-            grid.showRow(false, now: true)
+            grid.clearRow()
             showBar(true, now: true)
             tabs.openField()
         } else {

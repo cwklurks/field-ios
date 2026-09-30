@@ -81,8 +81,8 @@ struct GridLayout: Equatable {
         case stay
         /// Along its row.
         case slide
-        /// To another row: out where it was and in where it goes, rather
-        /// than across the cards sliding along theirs.
+        /// To another row, across the cards sliding along theirs: over
+        /// them, so none passes under another.
         case hop
         /// New to the list: it grows in.
         case arrive

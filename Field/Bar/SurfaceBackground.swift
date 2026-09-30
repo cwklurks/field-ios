@@ -14,6 +14,9 @@ final class SurfaceBackground: UIView {
     }
 
     private var glass: UIVisualEffectView?
+    /// A blur under dark glass. Dark glass clears far more of what's under
+    /// it than light glass does, and a page's text read through it as words.
+    private var frost: UIVisualEffectView?
     /// Glass's rim: the Mac's edge of ink, which is what marks clear glass off
     /// a white page, and lights its edge over a dark one.
     private var edge: UIView?
@@ -35,11 +38,18 @@ final class SurfaceBackground: UIView {
     private func build() {
         subviews.forEach { $0.removeFromSuperview() }
         glass = nil
+        frost = nil
         edge = nil
         far = nil
         near = nil
         switch look {
         case .glass:
+            let frost = UIVisualEffectView(effect: nil)
+            frost.frame = bounds
+            frost.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            frost.clipsToBounds = true
+            addSubview(frost)
+            self.frost = frost
             let view = UIVisualEffectView(effect: nil)
             view.frame = bounds
             view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -69,6 +79,7 @@ final class SurfaceBackground: UIView {
 
     private func shape() {
         glass?.cornerConfiguration = .corners(radius: .fixed(radius))
+        frost?.cornerConfiguration = .corners(radius: .fixed(radius))
         edge?.layer.cornerRadius = radius
         far?.layer.cornerRadius = radius
         near?.layer.cornerRadius = radius
@@ -88,6 +99,7 @@ final class SurfaceBackground: UIView {
             effect.tintColor = Palette.UI.ground.resolvedColor(with: traits).withAlphaComponent(0.6)
             glass.overrideUserInterfaceStyle = tone
             glass.effect = effect
+            frost?.effect = traits.userInterfaceStyle == .dark ? UIBlurEffect(style: .systemUltraThinMaterialDark) : nil
         }
         edge?.layer.borderColor = Palette.UI.ink.resolvedColor(with: traits).withAlphaComponent(0.1).cgColor
         if let far, let near {
