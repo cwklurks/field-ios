@@ -41,10 +41,12 @@ final class StarredShelf: UIHostingController<AnyView> {
         didMove(toParent: parent)
     }
 
-    /// In on a new tab's field with nothing typed, out otherwise: the quick
-    /// fade either way, from wherever it is.
-    func show(_ shown: Bool) {
+    /// In on a new tab's field with nothing typed, out otherwise: on
+    /// `curve` from wherever it is (the keyboard's, as it rises), or at once
+    /// with none.
+    func show(_ shown: Bool, on curve: SurfaceMotion.Curve? = .quick) {
         view.isUserInteractionEnabled = shown
-        SurfaceMotion.animate(.quick) { self.view.alpha = shown ? 1 : 0 }
+        guard let curve else { return UIView.performWithoutAnimation { view.alpha = shown ? 1 : 0 } }
+        SurfaceMotion.animate(curve) { self.view.alpha = shown ? 1 : 0 }
     }
 }

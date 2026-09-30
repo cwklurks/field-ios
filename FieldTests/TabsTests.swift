@@ -65,6 +65,15 @@ struct TabsTests {
         #expect(t.shape.active == 2)
     }
 
+    /// A popup let through opens next to its page, not at the end, and is
+    /// the one shown.
+    @Test func aPopupOpensBesideItsPage() {
+        let t = tabs(Session.Shape(tabs: [entry("https://a.com/"), entry("https://b.com/")], active: 0))
+        t.openBeside(URL(string: "https://popup.example/")!)
+        #expect(urls(t) == ["https://a.com/", "https://popup.example/", "https://b.com/"])
+        #expect(t.current.url?.absoluteString == "https://popup.example/")
+    }
+
     /// As in Safari: closing the one you're on shows the next, or the one
     /// before when it was last.
     @Test func closingTheCurrentTabShowsItsNeighbour() {

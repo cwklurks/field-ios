@@ -22,11 +22,24 @@ struct SaveSheet: View {
     @State private var naming = false
     @State private var newFolder = ""
     @State private var removed = false
-    @State private var ready = false
     @Namespace private var slide
     @FocusState private var focus: Field?
 
     private enum Field { case title, folder }
+
+    /// Seeded from the page as it's kept now, so a saved page's sheet rises
+    /// already showing its star and folder, with nothing to animate in.
+    init(store: SavedStore, page: SavedPage, onDone: @escaping () -> Void) {
+        self.store = store
+        self.page = page
+        self.onDone = onDone
+        let now = store.saved.pages.first { $0.id == page.id } ?? page
+        _title = State(initialValue: now.title)
+        _folder = State(initialValue: now.folder)
+        _starred = State(initialValue: now.starred)
+        // A page already in a folder was put there by someone.
+        _chosenByHand = State(initialValue: now.folder != nil)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -100,11 +113,12 @@ struct SaveSheet: View {
 
             HStack {
                 Button {
-                    withAnimation(Motion.calm(Motion.quick)) { starred.toggle() }
+                    // Word and star change on the same frame, not on two
+                    // timelines of their own.
+                    starred.toggle()
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: starred ? "star.fill" : "star")
-                            .contentTransition(.symbolEffect(.replace))
                         Text(starred ? "Starred" : "Star")
                     }
                     .ramp(.row)
@@ -136,7 +150,6 @@ struct SaveSheet: View {
         .padding(.top, 14)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Palette.ground)
-        .onAppear(perform: start)
         .task { await suggest() }
         .onDisappear(perform: keep)
         // One element holding the rest, which keep their own identifiers:
@@ -147,17 +160,6 @@ struct SaveSheet: View {
 
     /// Room for the four rows and the home indicator, and no more.
     static let height: CGFloat = 250
-
-    private func start() {
-        guard !ready else { return }
-        ready = true
-        let now = store.saved.pages.first { $0.id == page.id } ?? page
-        title = now.title
-        folder = now.folder
-        starred = now.starred
-        // A page already in a folder was put there by someone.
-        chosenByHand = now.folder != nil
-    }
 
     private func suggest() async {
         let saved = store.saved

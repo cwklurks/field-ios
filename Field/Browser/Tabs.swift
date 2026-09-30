@@ -172,6 +172,17 @@ import os
         return tab
     }
 
+    /// A page opened next to this one, sliding in as if swiped to: a popup
+    /// let through after all.
+    func openBeside(_ url: URL) {
+        let tab = Tab(history: history)
+        wire(tab)
+        tab.load(url)
+        all.insert(tab, at: index + 1)
+        changed()
+        switchTab(by: 1)
+    }
+
     func close(_ tab: Tab) {
         guard let i = all.firstIndex(where: { $0 === tab }) else { return }
         // Its picture stays on disk while it can still be reopened.
@@ -222,7 +233,7 @@ import os
     private func wire(_ tab: Tab) {
         tab.announce = { [weak self] in self?.announce($0) }
         tab.offer = { [weak self] in self?.offer($0, $1) }
-        tab.openTab = { [weak self] in self?.newTab($0) }
+        tab.openTab = { [weak self] in self?.openBeside($0) }
         tab.committed = { [weak self] in self?.committed() }
         tab.finished = { [weak self] in self?.finished($0) }
         tab.changed = { [weak self] in self?.changed() }

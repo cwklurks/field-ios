@@ -249,8 +249,9 @@ import os
         }
     }
 
+    /// A failure stays over the page it failed on until the new one commits
+    /// (didCommit), so the page from before it never shows through.
     func load(_ url: URL) {
-        failure = nil
         self.url = url
         guard web != nil else {
             pending = url
@@ -271,8 +272,6 @@ import os
 
     func retry() {
         if let blocked, let web {
-            failure = nil
-            self.blocked = nil
             asked = true
             ContentBlocking.shared.loadAnyway(blocked, in: web)
             return

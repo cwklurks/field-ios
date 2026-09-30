@@ -143,6 +143,19 @@ final class GuardTour: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    /// 8b: from a page, a link the blocker stops, then "Load anyway": the
+    /// message stays until the stopped page commits.
+    @MainActor func testLoadAnywayFromAPage() async throws {
+        let app = launch(Self.page("<h1>A page before</h1><a href='https://pagead2.googlesyndication.com/pagead/show_ads.js'>An ad server link</a>"))
+        try await pause(3)
+        app.webViews.links.firstMatch.tap()
+        let button = app.buttons["Load anyway"]
+        XCTAssert(button.waitForExistence(timeout: 8), "not stopped by the blocker")
+        try await pause(1.5)
+        button.tap()
+        try await pause(5)
+    }
+
     /// 8: a page the blocker stops outright, then "Load anyway".
     @MainActor func testLoadAnyway() async throws {
         let app = launch(URL(string: "https://pagead2.googlesyndication.com/pagead/show_ads.js")!)

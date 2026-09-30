@@ -361,6 +361,12 @@ final class FieldSurface: UIViewController {
             let t = ContinuousClock.now
             coordinator.open(surface.field)
             Self.log.notice("rest: focus took \(Self.ms(since: t)) ms")
+            // No keyboard coming (a hardware one): the shelf where it is.
+            Task { [weak self] in
+                try? await Task.sleep(for: FieldOpening.patience)
+                guard let self, flow.phase == .field, !Keyboard.up else { return }
+                showStarred()
+            }
         } else if !browser.fieldOpen, flow.phase == .field, !resting {
             handle(.cancel)
         }
@@ -401,6 +407,9 @@ final class FieldSurface: UIViewController {
         if flow.phase == .field, surface.transform != .identity {
             SurfaceMotion.animate(rising ?? .glide) { self.surface.transform = .identity }
         }
+        // The shelf comes in as the field rises, on the keyboard's curve,
+        // never ahead of it.
+        if flow.phase == .field, !resting, !dragging, !held { showStarred(on: rising ?? .glide) }
         guard let opened else { return }
         Self.log.notice("keyboard will show \(Self.ms(since: opened)) ms after the tap")
     }
@@ -498,7 +507,6 @@ final class FieldSurface: UIViewController {
         // keyboard (see ahead).
         SurfaceMotion.quickFromNextFrame { [self] in
             place()
-            showStarred()
             rider.transform = .identity
             surface.transform = CGAffineTransform(translationX: 0, y: -Self.ahead)
             surface.row.transform = .identity
@@ -509,7 +517,9 @@ final class FieldSurface: UIViewController {
         // No keyboard coming (a hardware one): it settles where it is.
         Task { [weak self] in
             try? await Task.sleep(for: FieldOpening.patience)
-            guard let self, flow.phase == .field, surface.transform != .identity else { return }
+            guard let self, flow.phase == .field else { return }
+            if !Keyboard.up { showStarred() }
+            guard surface.transform != .identity else { return }
             SurfaceMotion.animate(.settle) { self.surface.transform = .identity }
         }
         AfterCommit.run { [weak self] in
@@ -536,7 +546,6 @@ final class FieldSurface: UIViewController {
         resting = true
         pin()
         rows.rootView = SuggestionRows(omnibox: coordinator.omnibox, onGo: { [weak self] in self?.go(to: $0) })
-        showStarred()
         surface.row.isHidden = false
         surface.bar.address.isHidden = true
         scrim.isHidden = false
@@ -844,8 +853,8 @@ final class FieldSurface: UIViewController {
         flow.phase == .field && page.url == nil && coordinator.omnibox.offers.isEmpty
     }
 
-    private func showStarred() {
-        starred.show(wantsStarred)
+    private func showStarred(on curve: SurfaceMotion.Curve = .quick) {
+        starred.show(wantsStarred, on: curve)
     }
 
     /// A keystroke was answered: the rows may have come, gone or changed.
@@ -856,7 +865,9 @@ final class FieldSurface: UIViewController {
         guard flow.phase == .field else { return }
         let width = rider.bounds.width - 2 * Self.fieldMargin
         let offers = !coordinator.omnibox.offers.isEmpty
-        showStarred()
+        // Gone at once when rows are coming into its place, so no frame
+        // shows both; back on the quick fade when they've gone.
+        if offers { starred.show(false, on: nil) } else { showStarred() }
         // SwiftUI takes in the new offers at its next update, which a
         // measure alone doesn't bring: without it the first keystroke
         // measured the rows as they were, none.

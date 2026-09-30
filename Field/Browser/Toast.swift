@@ -51,31 +51,37 @@ struct Toast: View {
     @Environment(\.accessibilityReduceMotion) private var still
 
     var body: some View {
-        if let text = toaster.text {
-            HStack(spacing: 14) {
-                Text(text)
-                if let offer = toaster.offer {
-                    Button(offer.title, action: toaster.take)
-                        .buttonStyle(.plain)
-                        .fontWeight(.semibold)
-                        // Easier to hit than the word, without a bigger capsule.
-                        .contentShape(Rectangle().inset(by: -12))
-                        .accessibilityIdentifier("toast.offer")
-                }
-            }
-            .ramp(.toast)
-            .foregroundStyle(Palette.ink)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background {
-                Capsule()
-                    .fill(Palette.raised)
-                    .lift(.toast)
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-            }
-            .padding(.horizontal, Bar.margin)
-            .transition(still ? .opacity : .opacity.combined(with: .offset(y: 14)))
-            .id(text)
+        // Always there, so a toast going has a parent to leave from: without
+        // one its removal skips the transition and it vanishes in a frame.
+        ZStack {
+            if let text = toaster.text { capsule(text) }
         }
+    }
+
+    private func capsule(_ text: String) -> some View {
+        HStack(spacing: 14) {
+            Text(text)
+            if let offer = toaster.offer {
+                Button(offer.title, action: toaster.take)
+                    .buttonStyle(.plain)
+                    .fontWeight(.semibold)
+                    // Easier to hit than the word, without a bigger capsule.
+                    .contentShape(Rectangle().inset(by: -12))
+                    .accessibilityIdentifier("toast.offer")
+            }
+        }
+        .ramp(.toast)
+        .foregroundStyle(Palette.ink)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background {
+            Capsule()
+                .fill(Palette.raised)
+                .lift(.toast)
+                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
+        }
+        .padding(.horizontal, Bar.margin)
+        .transition(still ? .opacity : .opacity.combined(with: .offset(y: 14)))
+        .id(text)
     }
 }

@@ -5,14 +5,14 @@ import UIKit
 /// Saved's two sheets, put up from UIKit: the list, and the one after Save.
 /// Each kind is built and drawn once while nothing moves, as Settings is
 /// (SettingsSheet): SwiftUI builds a sheet's content on the tap, and the
-/// sheet waits for it before it moves, longest by far the first time. After
-/// that, each opening makes its sheet anew, which measured as quick as
-/// presenting a kept one again (1 or 2 frames to the first move, with 500
-/// pages), and starts it clean.
+/// sheet waits for it before it moves, longest by far the first time. The
+/// list is kept from then on, as Settings is: built anew, it started 6
+/// frames after the lift. SavedView starts it clean on each opening. The
+/// Save sheet is made anew each time.
 @MainActor
 enum SavedSheets {
-    /// The list that's up, if one is.
-    private static weak var list: Host?
+    /// The list, kept once built.
+    private static var list: Host?
     private static var warmed = false
 
     /// Two seconds on, when no finger is down and `busy` says nothing else
@@ -33,7 +33,9 @@ enum SavedSheets {
     static func prepare(_ store: SavedStore) {
         guard !warmed else { return }
         warmed = true
-        _ = drawn(Host(rootView: AnyView(SavedView(store: store, onOpen: { _ in }, onDone: {}).rooted())))
+        let host = Host(rootView: AnyView(SavedView(store: store, onOpen: { _ in }, onDone: {}).rooted()))
+        host.view.backgroundColor = Palette.UI.ground
+        list = drawn(host)
         Task { await FolderSuggester.shared.warm(store.saved) }
         // A page that isn't saved, so the sheet, going, keeps nothing.
         var elsewhere = Saved()
@@ -46,7 +48,7 @@ enum SavedSheets {
     static func showList(_ store: SavedStore, start: SavedFilter = .all,
                          onOpen: @escaping (URL) -> Void, onDismiss: @escaping () -> Void = {}) {
         guard list?.presentingViewController == nil, let top else { return }
-        let host = Host(rootView: AnyView(EmptyView()))
+        let host = list ?? Host(rootView: AnyView(EmptyView()))
         host.view.backgroundColor = Palette.UI.ground
         list = host
         host.rootView = AnyView(SavedView(

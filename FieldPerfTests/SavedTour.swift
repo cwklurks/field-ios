@@ -35,9 +35,21 @@ final class SavedTour: XCTestCase {
         try await pause(1.5)
         address.press(forDuration: 0.8)
         try await pause(1)
-        XCTAssert(app.buttons["Edit Saved Page"].exists)
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
-        try await pause(1)
+        // Its sheet rises with the star already filled.
+        app.buttons["Edit Saved Page"].tap()
+        try await pause(2)
+        app.element("savesheet.done").tap()
+        try await pause(1.5)
+    }
+
+    /// 2b: + from the grid: the shelf comes with the keyboard, never over
+    /// the grid as it goes.
+    @MainActor func testStarredFromGrid() async throws {
+        let app = launch(["-FieldOpen", "https://example.org/", "-FieldSeedSaved", "60"])
+        try app.required("bar.tabs", timeout: 10).tap()
+        try await pause(1.5)
+        try app.required("tabs.new").tap()
+        try await pause(3)
     }
 
     /// 2: a new tab: the starred shelf rises with the keyboard, rides it

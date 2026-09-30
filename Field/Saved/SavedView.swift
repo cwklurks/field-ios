@@ -55,6 +55,8 @@ struct SavedView: View {
             Button("Rename") { rename() }
         }
         .onAppear {
+            // Kept between openings (SavedSheets): each starts clean.
+            text = ""
             filter = start
             chip = start
         }
@@ -160,7 +162,7 @@ struct SavedView: View {
                                 store.remove(page.id)
                             }
                             Button("Move", systemImage: "folder") { moving = page }
-                                .tint(Palette.faint)
+                                .tint(Palette.muted)
                         }
                         .contextMenu { menu(for: page) }
                         .accessibilityIdentifier("saved.row.\(index)")
