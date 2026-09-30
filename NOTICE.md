@@ -46,3 +46,26 @@ fetched and the licence. `scripts/guard/update.sh` fetches them.
   https://publicsuffix.org/list/public_suffix_list.dat, split into plain,
   wildcard and exception rules with punycode forms added. Mozilla Public
   License 2.0, https://mozilla.org/MPL/2.0/.
+
+## Block lists
+
+Field ships EasyList and EasyPrivacy (Field/Resources/Lists), converted from
+Adblock Plus syntax to WebKit content rule list JSON and gzipped. Nothing else
+was changed. `scripts/lists/build.sh` fetches and converts them, and
+`blocking-manifest.json` records each list's source, version and sha256.
+
+- **EasyList** (`easylist.json.gz`) and **EasyPrivacy**
+  (`easyprivacy.json.gz`), by the EasyList authors, https://easylist.to/,
+  from https://easylist.to/easylist/easylist.txt and
+  https://easylist.to/easylist/easyprivacy.txt. Dual licensed under the GNU
+  General Public License, version 3 or later,
+  https://www.gnu.org/licenses/gpl-3.0.html, and Creative Commons
+  Attribution-ShareAlike 3.0 Unported,
+  https://creativecommons.org/licenses/by-sa/3.0/; Field uses them under
+  CC BY-SA 3.0. See https://easylist.to/pages/licence.html. The converted
+  files are under the same licence.
+- The conversion is done at build time by **SafariConverterLib**
+  (`ConverterTool` 4.3.0), Copyright AdGuard Software Ltd.,
+  https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
+  Public License, version 3. It is not part of the app and is not
+  distributed with it.

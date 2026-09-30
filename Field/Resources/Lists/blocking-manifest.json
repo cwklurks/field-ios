@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-30T05:31:06Z",
+  "converter": "SafariConverterLib 4.3.0",
+  "safariVersion": "26.0",
+  "lists": [
+    {
+      "name": "easylist",
+      "file": "easylist.json.gz",
+      "source": "https://easylist.to/easylist/easylist.txt",
+      "rules": 59482,
+      "sha256": "85a58314c3be945336cda4c14556db074811ff16ed1d84bdd50dcfbf08a018af",
+      "listVersion": "202609300518",
+      "expires": "4 days (update frequency)"
+    },
+    {
+      "name": "easyprivacy",
+      "file": "easyprivacy.json.gz",
+      "source": "https://easylist.to/easylist/easyprivacy.txt",
+      "rules": 56212,
+      "sha256": "4badfd581ac5a5a30102f7186e933d0973f037db159d1b5f3c11596ddc0b8852",
+      "listVersion": "202609300518",
+      "expires": "4 days (update frequency)"
+    }
+  ]
+}
