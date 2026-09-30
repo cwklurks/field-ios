@@ -37,6 +37,7 @@ enum AddressField {
             guard let field else { return }
             coordinator.unfold(field)
         }
+        field.page = { coordinator.omnibox.page }
         coordinator.field = field
         return field
     }
@@ -78,6 +79,8 @@ enum AddressField {
     final class Input: UITextField {
         /// Before UIKit acts on a touch, or on a key that isn't typing.
         var onTouch: (() -> Void)?
+        /// The page the field still stands for, untouched.
+        var page: (() -> URL?)?
         private(set) var pasting = false
         /// Set while the selection is the field's own proposal, which wears
         /// its tenth of ink as a background instead. With no rects, UIKit has
@@ -114,6 +117,15 @@ enum AddressField {
             resignLater = nil
             later { [weak self] in _ = self?.resignFirstResponder() }
             return true
+        }
+
+        /// All of an untouched field is the page's whole address, not the
+        /// shortened one it shows, and without its tracking parameters.
+        override func copy(_ sender: Any?) {
+            guard let page = page?(), let range = selectedTextRange,
+                  compare(range.start, to: beginningOfDocument) == .orderedSame,
+                  compare(range.end, to: endOfDocument) == .orderedSame else { return super.copy(sender) }
+            Guarded.copy(page)
         }
 
         override func paste(_ sender: Any?) {

@@ -5,6 +5,7 @@ import UIKit
 /// remembered.
 @MainActor @Observable final class Browser {
     let history: HistoryStore
+    let saved: SavedStore
     let tabs: Tabs
     /// The one on screen.
     var tab: Tab { tabs.current }
@@ -31,14 +32,17 @@ import UIKit
     /// the unit tests, which mustn't read the simulator's.
     init(restoring: Bool = true) {
         history = HistoryStore(directory: URL.applicationSupportDirectory.appending(path: "Field", directoryHint: .isDirectory))
+        saved = SavedStore(directory: URL.applicationSupportDirectory.appending(path: "Field", directoryHint: .isDirectory))
         // The last session, or with `-FieldOpen <url>` or `-FieldSeedTabs N`
         // the perf tests' tabs. A blank tab is the field, ready to type in.
         tabs = restoring
             ? Tabs.launch(history: history)
             : Tabs(history: history, restoring: .init(), store: SessionStore(directory: nil), snapshots: Snapshots(directory: nil))
         tabs.announce = { [toaster] in toaster.show($0) }
+        tabs.offer = { [toaster] in toaster.show($0, offering: $1) }
         tabs.committed = { [bar] in bar.expand() }
         tabs.openField = { [weak self] in self?.openField() }
+        tabs.finished = { [saved] in saved.opened($0) }
     }
 
     /// A blank tab, not yet started: the surface is the field from the first
@@ -62,14 +66,15 @@ import UIKit
             warmUpWhenQuiet()
         }
         Task { await history.load() }
+        Task { await saved.load() }
         // Launched before the phone's first unlock, the file can't be read
         // yet; try again once it can, until a load has worked.
         unlocked = NotificationCenter.default.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
-        ) { [history] _ in
+        ) { [history, saved] _ in
             MainActor.assumeIsolated {
-                guard !history.isLoaded else { return }
-                Task { await history.load() }
+                if !history.isLoaded { Task { await history.load() } }
+                if !saved.isLoaded { Task { await saved.load() } }
             }
         }
     }
@@ -133,6 +138,7 @@ import UIKit
         let task = UIApplication.shared.beginBackgroundTask(withName: "history")
         Task {
             await history.flush()
+            await saved.flush()
             await tabs.flush()
             UIApplication.shared.endBackgroundTask(task)
         }

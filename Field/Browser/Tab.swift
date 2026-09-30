@@ -21,13 +21,21 @@ import os
     private(set) var forward: [WKBackForwardListItem] = []
     /// A load that failed, said in one sentence in place of the page.
     private(set) var failure: String?
+    /// The address the blocker stopped, when that's why `failure` is set.
+    private(set) var blocked: URL?
     /// Whether the page reads as light or dark, from its background; nil
     /// until it has one. The glass bar over it takes the same.
     private(set) var tone: ColorScheme?
 
     @ObservationIgnored var announce: (String) -> Void = { _ in }
+    /// A toast with something to do about it: "Open".
+    @ObservationIgnored var offer: (String, Toaster.Offer) -> Void = { _, _ in }
+    /// A popup the person asked for after all, in a tab of its own.
+    @ObservationIgnored var openTab: (URL) -> Void = { _ in }
     /// A new page has replaced the old one.
     @ObservationIgnored var committed: () -> Void = {}
+    /// A web page finished loading, at this address.
+    @ObservationIgnored var finished: (URL) -> Void = { _ in }
     /// The address or the title changed: what the session keeps.
     @ObservationIgnored var changed: () -> Void = {}
     /// The page has painted since the web view was built; whatever covered
@@ -48,6 +56,11 @@ import os
     @ObservationIgnored private var failed: URL?
     @ObservationIgnored private var unpainted = true
     @ObservationIgnored private var watching: [NSKeyValueObservation] = []
+    /// The web view's, kept: `web.configuration` makes a copy on every call.
+    @ObservationIgnored private var content: WKUserContentController?
+    /// The app's own load is under way, until it commits or fails: its
+    /// navigations, and the redirects it meets, are the guard's `.typed`.
+    @ObservationIgnored private var asked = false
 
     init(history: HistoryStore, entry: Session.Entry? = nil) {
         self.history = history
@@ -99,6 +112,7 @@ import os
             WKUserScript(source: PaintRelay.script, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Tab.world)
         )
 
+        content = config.userContentController
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.uiDelegate = self
@@ -143,7 +157,7 @@ import os
             web.interactionState = saved
         } else if let url {
             // Restored from a session without a state (the Mac's): the address alone.
-            web.load(URLRequest(url: url))
+            open(URLRequest(url: url))
         }
     }
 
@@ -161,6 +175,8 @@ import os
         web.stopLoading()
         web.removeFromSuperview()
         self.web = nil
+        content = nil
+        asked = false
         unpainted = true
         isLoading = false
         endWake()
@@ -236,22 +252,37 @@ import os
     func load(_ url: URL) {
         failure = nil
         self.url = url
-        guard let web else {
+        guard web != nil else {
             pending = url
             return
         }
-        web.load(URLRequest(url: url))
+        open(URLRequest(url: url))
+    }
+
+    /// The app's own load, which the guard takes as typed.
+    private func open(_ request: URLRequest) {
+        guard let web else { return }
+        asked = true
+        web.load(request)
     }
 
     func goBack() { web?.goBack() }
     func go(to item: WKBackForwardListItem) { web?.go(to: item) }
 
     func retry() {
+        if let blocked, let web {
+            failure = nil
+            self.blocked = nil
+            asked = true
+            ContentBlocking.shared.loadAnyway(blocked, in: web)
+            return
+        }
         guard let target = failed ?? url else { return }
         load(target)
     }
 
-    private func reload() {
+    /// On a failed page it tries again; on any other, it reloads.
+    func reload() {
         if failure != nil { retry() } else { web?.reload() }
     }
 
@@ -303,6 +334,13 @@ import os
 
     private func fail(_ error: Error) {
         settled()
+        if let stopped = ContentBlocking.blockedURL(from: error) {
+            failed = stopped
+            url = stopped
+            blocked = stopped
+            failure = "Field's blocker stopped this page."
+            return
+        }
         guard let message = Trouble.message(for: error) else { return }
         failed = (error as NSError).userInfo[NSURLErrorFailingURLErrorKey] as? URL ?? url
         url = failed
@@ -319,26 +357,86 @@ import os
 }
 
 extension Tab: WKNavigationDelegate, WKUIDelegate {
+    /// The guard first (FieldKit's Guard/README.md), once its rules have
+    /// loaded: it may clean the address, stop a page throwing you into
+    /// another app, or ask before a link leaves Field. Then what a new window
+    /// may do (Opening), and the blocker's lists for the page's site.
     func webView(
         _ webView: WKWebView,
         decidePolicyFor action: WKNavigationAction,
-        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+        preferences: WKWebpagePreferences,
+        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy, WKWebpagePreferences) -> Void
     ) {
         let byLink = action.navigationType == .linkActivated
+        let mainFrame = action.targetFrame?.isMainFrame ?? true
+        if mainFrame, action.navigationType != .other { asked = false }
+        if let url = action.request.url, let navigationGuard = Guarded.current {
+            let shield = ContentBlocking.shared.isShieldOn(for: url.host())
+            let nav = Navigation(
+                url: url,
+                // Declared non-optional, but nil for some navigations.
+                source: (action.sourceFrame as WKFrameInfo?)?.request.url ?? webView.url,
+                kind: Tab.kind(of: action.navigationType, asked: asked && mainFrame),
+                isMainFrame: mainFrame,
+                opensNewWindow: action.targetFrame == nil,
+                userTapped: byLink
+            )
+            if navigationGuard.prefersHTTPS(nav, shieldOn: shield) {
+                preferences.preferredHTTPSNavigationPolicy = .automaticFallbackToHTTP
+            }
+            let verdict = navigationGuard.decide(nav, shieldOn: shield)
+            if verdict != .allow {
+                Guarded.log.notice("\(String(describing: nav.kind), privacy: .public) \(url) → \(String(describing: verdict))")
+            }
+            switch verdict {
+            case .allow:
+                break
+            case .rewrite(let clean):
+                decisionHandler(.cancel, preferences)
+                var request = URLRequest(url: clean)
+                request.setValue(action.request.value(forHTTPHeaderField: "Referer"), forHTTPHeaderField: "Referer")
+                open(request)
+                return
+            case .block(let reason):
+                decisionHandler(.cancel, preferences)
+                if reason == .appStore, mainFrame { announce("Stopped a jump to the App Store.") }
+                return
+            case .askToLeave(let target):
+                decisionHandler(.cancel, preferences)
+                askToLeave(for: target)
+                return
+            }
+        }
         switch Opening.decide(action.request.url, newWindow: action.targetFrame == nil, byLink: byLink) {
         case .allow:
-            decisionHandler(.allow)
+            if action.targetFrame?.isMainFrame == true, let content {
+                ContentBlocking.shared.apply(to: content, host: action.request.url?.host())
+            }
+            decisionHandler(.allow, preferences)
         case .sameTab:
-            decisionHandler(.cancel)
-            webView.load(action.request)
+            decisionHandler(.cancel, preferences)
+            open(action.request)
         case .block:
-            decisionHandler(.cancel)
-            announce("Popup blocked")
+            decisionHandler(.cancel, preferences)
+            popupBlocked(action.request.url)
         case .ignore:
-            decisionHandler(.cancel)
+            decisionHandler(.cancel, preferences)
             if byLink, action.targetFrame?.isMainFrame != false {
                 announce("Field doesn't open that kind of link yet.")
             }
+        }
+    }
+
+    /// What the guard calls a navigation. The app's own loads, and the
+    /// redirects they meet, are `.typed`: asked for, with no page to compare
+    /// sites against, so a rewritten address isn't rewritten again.
+    static func kind(of type: WKNavigationType, asked: Bool) -> Navigation.Kind {
+        switch type {
+        case .linkActivated: .link
+        case .formSubmitted, .formResubmitted: .formSubmit
+        case .backForward: .backForward
+        case .reload: .reload
+        default: asked ? .typed : .other
         }
     }
 
@@ -351,16 +449,48 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         switch Opening.decide(action.request.url, newWindow: true, byLink: action.navigationType == .linkActivated) {
-        case .sameTab: webView.load(action.request)
-        case .block: announce("Popup blocked")
+        case .sameTab: open(action.request)
+        case .block: popupBlocked(action.request.url)
         case .allow, .ignore: break
         }
         return nil
     }
 
+    /// A window a script opened stays shut, with a way to open it after all
+    /// in a tab of its own, when there's a page to open.
+    private func popupBlocked(_ url: URL?) {
+        guard let url, ["http", "https"].contains(url.scheme?.lowercased()) else { return announce("Popup blocked") }
+        offer("Popup blocked", Toaster.Offer(title: "Open") { [weak self] in self?.openTab(url) })
+    }
+
+    /// A link to another app, tapped: it goes once you say so.
+    private func askToLeave(for url: URL) {
+        offer(Tab.leaving(to: url), Toaster.Offer(title: "Open") { [weak self] in
+            UIApplication.shared.open(url) { opened in
+                if !opened { self?.announce("No app here opens that link.") }
+            }
+        })
+    }
+
+    /// Which app a link opens, as far as its scheme says.
+    static func leaving(to url: URL) -> String {
+        let app: String? = switch url.scheme?.lowercased() {
+        case "mailto": "Mail"
+        case "tel", "telprompt": "Phone"
+        case "sms", "imessage": "Messages"
+        case "facetime", "facetime-audio": "FaceTime"
+        case "maps": "Maps"
+        case "itms", "itms-apps", "itms-appss": "the App Store"
+        default: nil
+        }
+        return app.map { "This link opens \($0)." } ?? "This link opens another app."
+    }
+
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         failure = nil
         failed = nil
+        blocked = nil
+        asked = false
         settled()
         committed()
         changed()
@@ -372,9 +502,11 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
         reveal()
         guard let url = webView.url, ["http", "https"].contains(url.scheme?.lowercased()) else { return }
         history.visited(url, title: webView.title ?? "")
+        finished(url)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        asked = false
         fail(error)
     }
 

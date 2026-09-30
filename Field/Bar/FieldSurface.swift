@@ -29,6 +29,8 @@ final class FieldSurface: UIViewController {
     private let rider = PassThrough()
     private let coordinator: AddressField.Coordinator
     private let rows: UIHostingController<SuggestionRows>
+    /// Starred pages, above a new tab's field until something is typed.
+    private let starred: StarredShelf
     private let surface: SurfaceView
     private let sampler = ToneSampler()
 
@@ -95,6 +97,7 @@ final class FieldSurface: UIViewController {
         rows.safeAreaRegions = []
         rows.view.backgroundColor = .clear
         surface = SurfaceView(field: AddressField.make(coordinator), rows: rows.view)
+        starred = StarredShelf(store: browser.saved)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -114,6 +117,12 @@ final class FieldSurface: UIViewController {
         addChild(rows)
         rider.addSubview(surface)
         rows.didMove(toParent: self)
+        starred.install(in: self, rider: rider, above: Self.gap + Bar.height + 12)
+        starred.onOpen = { [weak self] in self?.go(to: $0) }
+        starred.onShowSaved = { [weak self] start in
+            guard let self else { return }
+            SavedSheets.showList(browser.saved, start: start) { [weak self] in self?.go(to: $0) }
+        }
         let guide = view.keyboardLayoutGuide
         NSLayoutConstraint.activate([
             scrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -157,6 +166,9 @@ final class FieldSurface: UIViewController {
         bar.newTab = { [weak self] in self?.browser.newTab() }
         bar.reopenClosedTab = { [weak self] in self?.browser.reopenClosedTab() }
         bar.canReopen = { [weak self] in self?.browser.tabs.closed.isEmpty == false }
+        bar.address.menu = UIMenu(children: [UIDeferredMenuElement.uncached { [weak self] done in
+            done(self?.addressMenu() ?? [])
+        }])
         let pill = UITapGestureRecognizer(target: self, action: #selector(tapPill))
         pill.delaysTouchesEnded = false
         pill.delegate = self
@@ -215,6 +227,8 @@ final class FieldSurface: UIViewController {
         guard dragging else { return }
         surface.layer.timeOffset = min(gone, 0.999)
         scrim.alpha = 1 - gone
+        // Riding the keyboard down, and going with the dimming.
+        if wantsStarred { starred.view.alpha = 1 - gone }
         // Brought all the way back with the finger still down: the field
         // again now, its own text in the address's place, not at the lift.
         if gone == 0 { springBack(on: .quick) }
@@ -294,6 +308,31 @@ final class FieldSurface: UIViewController {
     private func cancel() {
         Self.log.notice("cancel handled")
         handle(.cancel)
+    }
+
+    /// The address's long press: Save (or the saved page's sheet), the
+    /// page's address to copy or share without its tracking parameters, and
+    /// the blocker's switch for its site. A tap still opens the field.
+    private func addressMenu() -> [UIMenuElement] {
+        let tab = page
+        guard let url = tab.url, ["http", "https"].contains(url.scheme?.lowercased()) else { return [] }
+        let isSaved = browser.saved.contains(url)
+        let save = UIAction(title: isSaved ? "Edit Saved Page" : "Save",
+                            image: UIImage(systemName: isSaved ? "bookmark.fill" : "bookmark")) { [weak self] _ in
+            guard let self else { return }
+            SavedSheets.save(url, title: tab.title, in: browser.saved)
+        }
+        let passing = UIMenu(options: .displayInline, children: [
+            UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in Guarded.copy(url) },
+            UIAction(title: "Share…", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in self?.share(url) },
+        ])
+        return [save, passing, ContentBlocking.shared.shieldAction(for: url, reload: tab.reload)].compactMap { $0 }
+    }
+
+    private func share(_ url: URL) {
+        let sheet = UIActivityViewController(activityItems: [Guarded.stripped(url)], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = surface.bar.address
+        present(sheet, animated: true)
     }
 
     /// Return or a suggestion: the field turns back into the bar saying where
@@ -459,6 +498,7 @@ final class FieldSurface: UIViewController {
         // keyboard (see ahead).
         SurfaceMotion.quickFromNextFrame { [self] in
             place()
+            showStarred()
             rider.transform = .identity
             surface.transform = CGAffineTransform(translationX: 0, y: -Self.ahead)
             surface.row.transform = .identity
@@ -496,6 +536,7 @@ final class FieldSurface: UIViewController {
         resting = true
         pin()
         rows.rootView = SuggestionRows(omnibox: coordinator.omnibox, onGo: { [weak self] in self?.go(to: $0) })
+        showStarred()
         surface.row.isHidden = false
         surface.bar.address.isHidden = true
         scrim.isHidden = false
@@ -569,6 +610,7 @@ final class FieldSurface: UIViewController {
             rows.view.alpha = 0
             if !dragged { UIView.performWithoutAnimation { place(.field) } }
         }
+        starred.show(false)
         SurfaceMotion.animate(curve) { [self] in
             place()
             rider.transform = .identity
@@ -729,6 +771,7 @@ final class FieldSurface: UIViewController {
             surface.row.transform = .identity
             surface.magnifier.alpha = 1
             rows.view.alpha = listed > 0 ? 1 : 0
+            showStarred()
             scrim.alpha = 1
         }
     }
@@ -796,6 +839,15 @@ final class FieldSurface: UIViewController {
 
     // MARK: The field
 
+    /// The starred shelf: a new tab's field with nothing offered yet.
+    private var wantsStarred: Bool {
+        flow.phase == .field && page.url == nil && coordinator.omnibox.offers.isEmpty
+    }
+
+    private func showStarred() {
+        starred.show(wantsStarred)
+    }
+
     /// A keystroke was answered: the rows may have come, gone or changed.
     private func edited() {
         if surface.rim.alpha > 0 {
@@ -804,6 +856,7 @@ final class FieldSurface: UIViewController {
         guard flow.phase == .field else { return }
         let width = rider.bounds.width - 2 * Self.fieldMargin
         let offers = !coordinator.omnibox.offers.isEmpty
+        showStarred()
         // SwiftUI takes in the new offers at its next update, which a
         // measure alone doesn't bring: without it the first keystroke
         // measured the rows as they were, none.

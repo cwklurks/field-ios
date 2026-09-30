@@ -7,7 +7,13 @@ struct BrowserView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            StageView(tabs: browser.tabs, bar: browser.bar) {
+            StageView(tabs: browser.tabs, bar: browser.bar, openSaved: {
+                SavedSheets.showList(browser.saved) { url in
+                    // Opened in the tab on screen, whose card grows into the page.
+                    browser.go(to: url)
+                    browser.hideTabs()
+                }
+            }) {
                 // Straight from the tap, not from inside SwiftUI's next update.
                 browser.settingsShown = true
                 SettingsSheet.present { browser.settingsShown = false }
@@ -18,7 +24,7 @@ struct BrowserView: View {
                 .ignoresSafeArea(.keyboard)
 
             if let failure = browser.tab.failure, !browser.tabs.gridShown {
-                Trouble(message: failure, retry: browser.tab.retry)
+                Trouble(message: failure, action: browser.tab.blocked == nil ? "Try again" : "Load anyway", retry: browser.tab.retry)
             }
 
             if !browser.tabs.gridShown {
@@ -41,6 +47,10 @@ struct BrowserView: View {
         // between keystrokes or under a coasting page.
         .onAppear {
             SettingsSheet.prepareSoon {
+                let scroll = browser.tab.web?.scrollView
+                return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
+            }
+            SavedSheets.prepareSoon(browser.saved) {
                 let scroll = browser.tab.web?.scrollView
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }

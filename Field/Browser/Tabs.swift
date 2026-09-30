@@ -23,7 +23,9 @@ import os
     @ObservationIgnored weak var stage: Stage?
     /// Hooked up to every tab.
     @ObservationIgnored var announce: (String) -> Void = { _ in }
+    @ObservationIgnored var offer: (String, Toaster.Offer) -> Void = { _, _ in }
     @ObservationIgnored var committed: () -> Void = {}
+    @ObservationIgnored var finished: (URL) -> Void = { _ in }
     /// A new blank tab is shown and wants the field.
     @ObservationIgnored var openField: () -> Void = {}
     /// The bar, which only the Stage fades, as the grid comes and goes (see
@@ -219,7 +221,10 @@ import os
 
     private func wire(_ tab: Tab) {
         tab.announce = { [weak self] in self?.announce($0) }
+        tab.offer = { [weak self] in self?.offer($0, $1) }
+        tab.openTab = { [weak self] in self?.newTab($0) }
         tab.committed = { [weak self] in self?.committed() }
+        tab.finished = { [weak self] in self?.finished($0) }
         tab.changed = { [weak self] in self?.changed() }
     }
 

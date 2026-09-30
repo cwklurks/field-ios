@@ -48,6 +48,12 @@ struct FieldApp: App {
     private func firstFrame() {
         DispatchQueue.main.async {
             Signpost.log.emitEvent(Signpost.firstFrame)
+            // Before the browser starts: the blocker watches the keyboard,
+            // and has to see it come up for the field.
+            if !Baseline.isOn {
+                ContentBlocking.shared.prepare()
+                Guarded.load()
+            }
             if welcomed, !Baseline.isOn { browser.start() }
         }
     }

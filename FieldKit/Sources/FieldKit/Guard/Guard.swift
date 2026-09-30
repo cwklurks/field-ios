@@ -104,6 +104,15 @@ public struct Guard: Sendable {
         return !Address.isLocal(host: host)
     }
 
+    /// The address to copy or share: its tracking parameters stripped
+    /// whatever site it's on, since whoever gets it comes from somewhere
+    /// else. A page's `pushState` can put them back after a navigation was
+    /// cleaned.
+    public func stripped(_ url: URL) -> URL {
+        guard let host = GuardRules.host(of: url), !Address.isLocal(host: host) else { return url }
+        return rules.tracking.stripped(url, host: host) ?? url
+    }
+
     /// The address with its shims unwrapped and, when it crosses to another
     /// site, its tracking parameters stripped. Same-site navigations keep
     /// theirs, as in Brave: a site's own utm_source is its own business. An

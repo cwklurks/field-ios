@@ -62,6 +62,9 @@ struct SavedView: View {
             // A folder deleted or renamed while it was the filter.
             if case .folder(let name) = filter, !folders.contains(name) { show(.all) }
         }
+        // One element holding the rest, which keep their own identifiers:
+        // on a plain container this one would replace theirs.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("saved")
     }
 

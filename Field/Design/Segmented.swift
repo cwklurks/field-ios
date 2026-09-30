@@ -30,6 +30,8 @@ struct Segmented<Option: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(option == selection ? .isSelected : [])
+                // The lift slides under the others, never over their names.
+                .zIndex(option == selection ? 0 : 1)
             }
         }
         .padding(2)

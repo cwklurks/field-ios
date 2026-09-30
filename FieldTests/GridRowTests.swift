@@ -12,6 +12,11 @@ struct GridRowTests {
         #expect(row.new.minX >= row.settings.maxX)
     }
 
+    @Test func savedBetweenSettingsAndNewTab() {
+        #expect(row.saved.minX == row.settings.maxX)
+        #expect(row.new.minX == row.saved.maxX)
+    }
+
     @Test func doneAtTheTrailingEnd() {
         #expect(row.done.maxX == 402 - GridRow.margin)
     }
@@ -23,7 +28,7 @@ struct GridRowTests {
     }
 
     @Test func everyButtonIsAFingerWide() {
-        for frame in [row.settings, row.new, row.done] {
+        for frame in [row.settings, row.saved, row.new, row.done] {
             #expect(frame.width >= 44)
             #expect(frame.height >= 44)
         }

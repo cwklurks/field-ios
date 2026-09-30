@@ -16,6 +16,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     private let row = UIView()
     private let count = UILabel()
     private let settings = UIButton(type: .system)
+    private let savedButton = UIButton(type: .system)
     private let new = UIButton(type: .system)
     private let done = UIButton(type: .system)
     private var cards: [ObjectIdentifier: TabCard] = [:]
@@ -30,6 +31,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     var onNew: () -> Void = {}
     var onDone: () -> Void = {}
     var onSettings: () -> Void = {}
+    var onSaved: () -> Void = {}
 
     init(tabs: Tabs) {
         self.tabs = tabs
@@ -67,6 +69,15 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         // Straight to the sheet: no menu to close first.
         settings.addAction(UIAction { [weak self] _ in self?.onSettings() }, for: .primaryActionTriggered)
         row.addSubview(settings)
+
+        var mark = UIButton.Configuration.plain()
+        mark.image = UIImage(systemName: "bookmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: Ramp.row.size, weight: .medium))
+        mark.baseForegroundColor = Palette.UI.ink
+        savedButton.configuration = mark
+        savedButton.accessibilityLabel = "Saved"
+        savedButton.accessibilityIdentifier = "tabs.saved"
+        savedButton.addAction(UIAction { [weak self] _ in self?.onSaved() }, for: .primaryActionTriggered)
+        row.addSubview(savedButton)
 
         new.configuration = plus
         new.accessibilityLabel = "New tab"
@@ -162,6 +173,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         row.frame = CGRect(x: 0, y: bounds.height - Self.rowHeight - bottom, width: bounds.width, height: Self.rowHeight + bottom)
         let buttons = GridRow(width: bounds.width)
         settings.frame = buttons.settings
+        savedButton.frame = buttons.saved
         new.frame = buttons.new
         done.frame = buttons.done
         count.frame = buttons.count

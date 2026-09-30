@@ -5,6 +5,7 @@ import SwiftUI
 /// page, and the only thing worth offering, another go.
 struct Trouble: View {
     let message: String
+    var action = "Try again"
     let retry: () -> Void
 
     var body: some View {
@@ -13,7 +14,7 @@ struct Trouble: View {
                 .ramp(.message)
                 .foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
-            Button("Try again", action: retry)
+            Button(action, action: retry)
                 .buttonStyle(.plain)
                 .ramp(.toast)
                 .foregroundStyle(Palette.muted)

@@ -64,11 +64,14 @@ struct SavedSuggestTests {
     /// model came back empty, and the next, a moment on, had it. A model
     /// that isn't there is asked for again later, never given up on.
     @Test(.enabled(if: NLEmbedding.sentenceEmbedding(for: .english) != nil))
-    func aModelMissingAtFirstIsAskedForAgain() async {
+    func aModelMissingAtFirstIsAskedForAgain() async throws {
+        // The model the second ask gets, loaded here: the system's own ask
+        // is the very thing that can come back empty.
         let asks = Asks()
-        let suggester = FolderSuggester(retry: .zero) { language in
+        asks.model = try #require(NLEmbedding.sentenceEmbedding(for: .english))
+        let suggester = FolderSuggester(retry: .zero) { _ in
             asks.count += 1
-            return asks.count == 1 ? nil : NLEmbedding.sentenceEmbedding(for: language)
+            return asks.count == 1 ? nil : asks.model
         }
         let saved = library()
         let pizza = url("https://www.kingarthurbaking.com/pizza")
@@ -84,4 +87,5 @@ struct SavedSuggestTests {
 
 nonisolated private final class Asks: @unchecked Sendable {
     var count = 0
+    var model: NLEmbedding?
 }

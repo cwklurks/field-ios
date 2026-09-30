@@ -10,12 +10,15 @@ import os
 struct StageView: UIViewRepresentable {
     let tabs: Tabs
     let bar: BarState
+    /// The grid's Saved button.
+    var openSaved: () -> Void = {}
     /// The grid's Settings button.
     let openSettings: () -> Void
 
     func makeUIView(context: Context) -> Stage {
         let stage = Stage(tabs: tabs, bar: bar, scroller: Scroller(bar: bar))
         stage.openSettings = openSettings
+        stage.openSaved = openSaved
         tabs.stage = stage
         return stage
     }
@@ -48,6 +51,7 @@ final class Stage: UIView {
     private let bar: BarState
     let scroller: Scroller
     var openSettings: () -> Void = {}
+    var openSaved: () -> Void = {}
 
     /// Holds the web view and its cover; slides in the carousel.
     private let page = UIView()
@@ -614,6 +618,7 @@ final class Stage: UIView {
         grid.onDone = { [weak self] in self?.tabs.hideGrid() }
         grid.onNew = { [weak self] in self?.tabs.newTabFromGrid() }
         grid.onSettings = { [weak self] in self?.openSettings() }
+        grid.onSaved = { [weak self] in self?.openSaved() }
         addSubview(grid)
         self.grid = grid
         return grid

@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Where the grid's bottom row puts its buttons: Settings and a new tab at
+/// Where the grid's bottom row puts its buttons: Settings, Saved and a new tab at
 /// the leading end, the count in the middle, Done at the trailing end, each
 /// a finger wide and vertically centred in the row above the home indicator.
 struct GridRow {
@@ -17,8 +17,12 @@ struct GridRow {
         CGRect(x: Self.margin, y: top, width: Self.button, height: Self.button)
     }
 
-    var new: CGRect {
+    var saved: CGRect {
         CGRect(x: settings.maxX, y: top, width: Self.button, height: Self.button)
+    }
+
+    var new: CGRect {
+        CGRect(x: saved.maxX, y: top, width: Self.button, height: Self.button)
     }
 
     var done: CGRect {

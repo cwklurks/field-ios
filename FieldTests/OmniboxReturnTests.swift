@@ -32,6 +32,15 @@ import FieldKit
         return omnibox.edited(to: text, selection: end..<end, marked: false, cause: cause)
     }
 
+    /// Copying all of an untouched field copies the page's whole address.
+    @Test func theFieldStandsForItsPageUntilTouched() {
+        let page = URL(string: "https://github.com/field?tab=readme")!
+        let box = omnibox(initial: page)
+        #expect(box.page == page)
+        type("gi", into: box)
+        #expect(box.page == nil)
+    }
+
     // MARK: - Return
 
     @Test func returnOnABlankFieldIsRefused() {

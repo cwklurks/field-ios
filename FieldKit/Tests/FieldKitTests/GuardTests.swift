@@ -173,6 +173,20 @@ struct GuardTests {
         #expect(try Self.decide(url, from: source) == .allow)
     }
 
+    /// Copied or shared: whatever site it's on, since whoever gets it comes
+    /// from somewhere else. A `pushState` address can carry them again.
+    @Test(arguments: [
+        ("https://www.nytimes.com/section/world?utm_source=homepage&page=2", "https://www.nytimes.com/section/world?page=2"),
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=Hx9abc#t=10", "https://www.youtube.com/watch?v=dQw4w9WgXcQ#t=10"),
+        ("https://example.org/?q=swift", "https://example.org/?q=swift"),
+        ("https://www.axs.com/events/123?utm_source=spotify", "https://www.axs.com/events/123?utm_source=spotify"),
+        ("http://192.168.1.1/?utm_source=x", "http://192.168.1.1/?utm_source=x"),
+        ("data:text/html,hi?fbclid=1", "data:text/html,hi?fbclid=1"),
+    ])
+    func aCopiedAddressIsStripped(url: String, stripped: String) throws {
+        #expect(Self.field.stripped(try #require(URL(string: url))).absoluteString == stripped)
+    }
+
     // MARK: - AMP
 
     static let amp: [(String, String)] = [

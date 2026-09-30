@@ -28,6 +28,9 @@ import Observation
     /// it, not the shortened address it shows.
     @ObservationIgnored private var touched = false
 
+    /// The page the field opened on, while it still stands for it.
+    var page: URL? { touched ? nil : initial }
+
     init(initial: URL?, history: HistoryStore, defaults: UserDefaults = .standard) {
         self.initial = initial
         self.history = history

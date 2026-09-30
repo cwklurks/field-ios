@@ -139,6 +139,9 @@ struct SaveSheet: View {
         .onAppear(perform: start)
         .task { await suggest() }
         .onDisappear(perform: keep)
+        // One element holding the rest, which keep their own identifiers:
+        // on a plain container this one would replace theirs.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("savesheet")
     }
 
