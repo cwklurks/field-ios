@@ -42,6 +42,17 @@ final class CriticTour: XCTestCase {
         return html
     }()
 
+    /// Page N: its own title and colour, so cards in the grid tell apart.
+    static func page(_ n: Int) -> String {
+        let names = ["Zero", "Sourdough starter", "Lisbon in October", "Night trains", "Bike fitting", "Fermented hot sauce",
+                     "Swift concurrency", "Reading glasses", "Tide tables"]
+        let hue = (n * 47) % 360
+        return "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><title>\(names[n % names.count])</title>"
+            + "<body style='margin:0;font:19px/1.5 -apple-system;color:#111'>\(heartbeat)<div style='height:42vh;background:hsl(\(hue),45%,62%)'></div>"
+            + "<h1 style='margin:24px'>\(names[n % names.count])</h1>"
+            + String(repeating: "<p style='margin:0 24px 16px'>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>", count: 14)
+    }
+
     /// A short page of our own, with the heartbeat.
     static func small(_ body: String) -> String {
         "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><title>Field test</title>"
@@ -562,6 +573,231 @@ final class CriticTour: XCTestCase {
             try await pause(2.5)
         }
     }
+
+    // MARK: Round 6: the Release 1 candidate
+
+    /// 23: a first launch on a fresh install (uninstall first): the welcome,
+    /// Continue, then a real site typed as a friend would (CRITIC_URL's host).
+    @MainActor func testFirstRun() async throws {
+        let app = launch([], welcomed: nil, looks: false)
+        let glass = try app.required("welcome.glass", timeout: 15)
+        try await pause(2.5)
+        glass.tap()
+        try await pause(1.2)
+        app.buttons["Continue"].tap()
+        try await pause(3)
+        let host = URL(string: ProcessInfo.processInfo.environment["CRITIC_URL"] ?? "https://www.theverge.com/")?.host() ?? "theverge.com"
+        if !app.keyboards.firstMatch.exists { app.element("bar.address").tap() }
+        try await pause(1.5)
+        app.typeText(host.replacingOccurrences(of: "www.", with: ""))
+        try await pause(1)
+        app.typeText("\n")
+        try await pause(10)
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        let high = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        for _ in 0..<3 {
+            low.press(forDuration: 0.05, thenDragTo: high, withVelocity: 400, thenHoldForDuration: 0.4)
+            try await pause(2)
+        }
+    }
+
+    /// 24: wrapped links tapped on a page: each opens at the real address,
+    /// shown in full by opening the field, then back.
+    @MainActor func testCleanLinks() async throws {
+        let app = launch([], open: server.url("/links"))
+        _ = try app.required("page", timeout: 10)
+        try await pause(3)
+        for name in ["Google result", "Facebook link", "Reddit link", "AMP link"] {
+            let link = app.webViews.links[name].firstMatch
+            XCTAssert(link.waitForExistence(timeout: 5), "no \(name)")
+            link.tap()
+            try await pause(5)
+            app.element("bar.address").tap()
+            try await pause(2)
+            _ = app.closeField()
+            try await pause(1)
+            app.element("bar.back").tap()
+            try await pause(3)
+        }
+    }
+
+    /// 25: as a friend would: eight tabs opened by hand from the grid's +,
+    /// one swiped away, then home, force-quit and open again: they're back.
+    @MainActor func testTabsByHand() async throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-FieldTouchMarks", "YES", "-welcomed", "YES", "-bar.look", look, "-look", mode]
+        app.launch()
+        try await pause(3)
+        if !app.keyboards.firstMatch.exists { app.element("bar.address").tap() }
+        try await pause(1)
+        app.typeText(server.url("/page/1").absoluteString + "\n")
+        try await pause(2.5)
+        for n in 2...8 {
+            app.element("bar.tabs").tap()
+            try await pause(1.2)
+            app.element("tabs.new").tap()
+            try await pause(1.5)
+            app.typeText(server.url("/page/\(n)").absoluteString + "\n")
+            try await pause(2.5)
+        }
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        app.element("tabs.card.3").swipeLeft(velocity: .default)
+        try await pause(1.5)
+        app.element("tabs.card.1").tap()
+        try await pause(2)
+        XCUIDevice.shared.press(.home)
+        try await pause(2)
+        app.terminate()
+        try await pause(1.5)
+        app.launch()
+        try await pause(4)
+        app.element("bar.tabs").tap()
+        try await pause(2)
+        print("CARDS AFTER RESTORE: \(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tabs.card.'")).count)")
+        app.element("tabs.done").tap()
+        try await pause(2)
+    }
+
+    /// 26: Save with a new folder and the star; then Saved from the grid,
+    /// on Read later.
+    @MainActor func testSaveFolder() async throws {
+        let app = launch(["-FieldSeedTabs", "2"], open: server.url("/page/3"))
+        _ = try app.required("page", timeout: 10)
+        try await pause(3)
+        try await addressMenu(app, choose: "Save")
+        try await pause(2)
+        try app.required("savesheet.folder.new").tap()
+        try await pause(1.2)
+        app.typeText("Recipes\n")
+        try await pause(1.5)
+        app.element("savesheet.star").tap()
+        try await pause(1.2)
+        app.element("savesheet.done").tap()
+        try await pause(1.8)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        try app.required("tabs.saved").tap()
+        try await pause(1.8)
+        try app.required("saved.filter.later").tap()
+        try await pause(1.5)
+        app.element("saved.filter.Recipes").tap()
+        try await pause(1.5)
+        app.element("saved.done").tap()
+        try await pause(1.5)
+        // Back on the grid: + shows the shelf with the starred page.
+        app.element("tabs.new").tap()
+        try await pause(3)
+    }
+
+    /// 27: Settings' new rows: Tabs untouched for, Private's When you leave
+    /// and Wipe when away, and the limits from there.
+    @MainActor func testSettingsNew() async throws {
+        let app = launch(["-FieldSeedTabs", "2"], open: server.url("/article"))
+        try app.required("bar.tabs", timeout: 10).tap()
+        try await pause(1.5)
+        try app.required("tabs.settings").tap()
+        let settings = try app.required("settings")
+        try await pause(1.5)
+        settings.swipeUp(velocity: .slow)
+        try await pause(1.5)
+        app.buttons["1 week"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["2 weeks"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["Wipe"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["Lock"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["15 min"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["Never"].firstMatch.tap()
+        try await pause(1.2)
+        app.buttons["What Private can't do"].firstMatch.tap()
+        try await pause(2)
+        app.element("private.limits").swipeUp(velocity: .slow)
+        try await pause(1.5)
+        app.buttons["Done"].firstMatch.tap()
+        try await pause(1.5)
+        app.buttons["settings.done"].tap()
+        try await pause(2)
+    }
+
+    /// 28: Private's own core loop, dark: in, the limits from its page, a
+    /// page typed, scrolled, the field and cancel, the grid and back.
+    @MainActor func testPrivateLoop() async throws {
+        let app = launch(["-FieldSeedTabs", "2"], open: server.url("/article"))
+        _ = app.staticTexts[Article.headline].waitForExistence(timeout: 10)
+        try await pause(3)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        try app.required("private.switch").tap()
+        try await pause(2.5)
+        // The first tap on "What Private can't do" closes the field (as a
+        // friend would find it); a second opens the list.
+        let limits = app.element("private.limits.open")
+        if limits.exists {
+            limits.tap()
+            try await pause(2)
+            if !app.element("private.limits").exists { limits.tap() }
+            try await pause(2.5)
+            app.element("private.limits").buttons["Done"].firstMatch.tap()
+            try await pause(2)
+        }
+        if !app.keyboards.firstMatch.exists { app.element("bar.address").tap() }
+        try await pause(1.2)
+        app.typeText(server.url("/article").absoluteString + "\n")
+        try await pause(3)
+        let page = app.element("page")
+        page.swipeUp(velocity: 600)
+        try await pause(1.5)
+        page.swipeDown(velocity: 600)
+        try await pause(1.5)
+        app.element("bar.address").tap()
+        try await pause(1.5)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        try await pause(1.5)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        app.element("tabs.card.0").tap()
+        try await pause(2)
+    }
+
+    /// 29: a Tidy group's header: Add Similar Tabs, then Ungroup; then the
+    /// stale banner's own Close and its Undo.
+    @MainActor func testGroupMenu() async throws {
+        let app = launch(["-FieldSeedTidy", "YES"], open: server.url("/article"))
+        _ = try app.required("page", timeout: 10)
+        try await pause(3)
+        app.element("bar.tabs").tap()
+        try await pause(1.5)
+        for _ in 0..<3 { app.element("tabs.grid").swipeDown(velocity: .fast) }
+        try await pause(1.5)
+        app.element("tabs.tidy").tap()
+        let apply = try app.required("tidy.apply")
+        try await pause(3)
+        apply.tap()
+        try await pause(2.5)
+        let header = try app.required("tabs.group")
+        header.press(forDuration: 0.8)
+        try await pause(1.2)
+        app.buttons["Add Similar Tabs"].firstMatch.tap()
+        try await pause(3)
+        if app.element("tidy.apply").isEnabled { app.element("tidy.apply").tap() } else { app.element("tidy.cancel").tap() }
+        try await pause(2.5)
+        header.press(forDuration: 0.8)
+        try await pause(1.2)
+        app.buttons["Ungroup"].firstMatch.tap()
+        try await pause(2.5)
+        for _ in 0..<3 { app.element("tabs.grid").swipeDown(velocity: .fast) }
+        try await pause(1.5)
+        if app.element("stale.close").exists {
+            app.element("stale.close").tap()
+            try await pause(1.2)
+            app.element("toast.offer").tap()
+            try await pause(2.5)
+        }
+    }
 }
 
 /// A one-finger drag through several points, which XCUICoordinate can't
@@ -677,6 +913,15 @@ final class CriticServer: @unchecked Sendable {
         case "/ads": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.small(
             "<p id=ad>Waiting for the ad script</p><script src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'"
             + " onload=\"ad.textContent='Ad script loaded'\" onerror=\"ad.textContent='Ad script blocked'\"></script>").utf8))
+        case "/links": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.small(
+            ["Google result": "https://www.google.com/url?q=https://en.wikipedia.org/wiki/Swift_(programming_language)%3Futm_source%3Dgoogle&sa=D&source=web&usg=AOvVaw0abc",
+             "Facebook link": "https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.org%2F%3Ffbclid%3DIwZXh0bgNhZW0CMTEAAR2&h=AT0xyzABC",
+             "Reddit link": "https://out.reddit.com/t3_1fq2abc?url=https%3A%2F%2Fgithub.com%2Fswiftlang%2Fswift%3Futm_source%3Dreddit&token=AQAAq8b5&app_name=web2x",
+             "AMP link": "https://www.google.com/amp/s/www.theguardian.com/world/2026/sep/28/example?amp_js_v=0.1&usqp=mq331AQIUAKwASCAAgM%3D"]
+                .sorted { $0.key > $1.key }
+                .map { "<p><a style='font-size:24px' href='\($0.value)'>\($0.key)</a></p>" }.joined()).utf8))
+        case let path where path.hasPrefix("/page/"):
+            ("200 OK", "text/html; charset=utf-8", Data(CriticTour.page(Int(path.dropFirst(6)) ?? 0).utf8))
         case let path where path.hasPrefix("/figure/"):
             ("200 OK", "image/svg+xml", Data(Article.svg(Int(path.dropFirst(8).prefix { $0.isNumber }) ?? 0).utf8))
         default: ("404 Not Found", "text/plain", Data("Not found".utf8))
