@@ -60,8 +60,10 @@ struct StageView: UIViewRepresentable {
             let stage = makeStage(for: tabs)
             connect(stage, to: strip, c)
             let side = PrivateSide(stage: stage)
-            // The list over a closing field, on one tap.
+            // The list over a closing field, on one tap. The field lets go of
+            // the keyboard first, so the list has nothing to give it back to.
             side.openLimits = { [browser] in
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 browser.closeField()
                 PrivateLimits.present()
             }

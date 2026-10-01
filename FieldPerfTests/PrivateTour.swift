@@ -103,6 +103,18 @@ final class PrivateTour: XCTestCase {
         app.element("private.limits.open").tap()
         XCTAssert(app.element("private.limits").waitForExistence(timeout: 3), "one tap didn't open the list")
         try await pause(2)
+        // Done: back to the tab with the field closed, and no keyboard left
+        // over it with nothing to type into (polish-6 P6-14).
+        app.buttons["Done"].firstMatch.tap()
+        try await pause(2)
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "a keyboard came back with the list's Done")
+        // The address still opens the field, which takes typing.
+        app.element("bar.address").tap()
+        try await pause(1.5)
+        app.typeText("w")
+        try await pause(1)
+        let typed = app.textFields.element(boundBy: 0).value as? String ?? ""
+        XCTAssert(typed.hasPrefix("w"), "the field didn't take the keystroke: \(typed)")
     }
 
     /// 2: in Private with the keyboard up, to the home screen and the app

@@ -234,3 +234,41 @@ Everything on polish-5's list still holds, and this round adds:
 - The first entry into Private after launch: does it start at once (P6-11)?
 - Side + volume up on a long page: Full Page in the screenshot editor. In Private it should be missing (capture.md, "Checks on the phone").
 - The Tidy model on a phone with Apple Intelligence; the simulator only runs the rules.
+
+## Round 6 check: 36a7d0d
+
+Rechecked 2026-09-30 on a Release build from a clean worktree of 36a7d0d ("fix: release fixes from polish review 6"), which includes fb4b57e. Same simulator and method as above. The videos are in `critic/r6b/` and the strips are `critic/R6b-*.png`. `CriticTour.testLimitsDone` is a scratch repro, kept in the worktree only.
+
+| | Now |
+|---|---|
+| P6-01 the field rises light | **Fixed.** The field is dark glass from its first frame in all 4 new-session entries: testEnterLeave #488, testWipe #415 and #809, testPrivateLoop #365. There's no light pill and no cut (`R6b-enter1-zoom.png`, `R6b-enter3.png`, `R6b-enter4.png`). The residue is minor: for about 8 frames the grid row's "3 Tabs" and "Done" still show under the rising field, like the accepted P1-15 residue on +. |
+| P6-02 the clock in Private | **Fixed.** The time and icons are light on the new private tab and on the private grid (`R6b-statusbar-blank.png`, `R6b-grid-sb.png`). |
+| P6-03 "Search o…r an address" | **Fixed.** A blank private tab drops the mark, and the placeholder is whole (`R6b-placeholder.png`). |
+| P6-04 two taps for the list | **Fixed, but it caused P6-14.** One tap closes the field and raises the list (`R6b-welcomelink.png`, #450–#490; `PrivateTour.testWelcomeLink` passes). |
+| P6-05 the first capture's 2 s of nothing | **Fixed.** "Capturing the page…" shows as the menu closes and stays until the sheet rises (`R6b-capture-first.png`, 1413–1533). |
+| P6-06 Tidy and the banner off-screen | **Fixed.** The banner floats above the grid row where the grid opens. Apply scrolls to "Loaf Sourdough" in the same motion as the sheet leaving and the cards gliding, and Undo glides them back (`R6b-tidy-contact.png`, `R6b-apply.png`). Stale Review → "Close 3 tabs" → "Closed 3 tabs · Undo" → 13 tabs and the banner back (`R6b-stale-contact.png`). |
+| P6-07 the popup's old host | **Fixed.** The bar says "example.org" on the frame after Open (`R6b-popup.png`, 1109). |
+| fb4b57e stale duplicates | **Good.** The banner now reads "3 tabs untouched for 2 weeks". The seeded Gmail tabs (#inbox and #drafts) are no longer called duplicates (`R6b-banner.png`). |
+| Core loop, glass light | **Unchanged.** Tap, type and Go, cancel by tap, scroll and flicks, and the grid (open, choose, swipe, ✕, +) all match round 6 within a frame: L+1 or L+2 on every touch. |
+
+### P6-14 · blocker · After "What Private can't do", the keyboard comes back with no field and covers the bar
+**What's wrong:** on a new private tab, tap "What Private can't do", read it, then tap Done. As the list goes down, the keyboard rises again, with nothing above it: no field and no shelf. The bar is hidden under the keyboard. From there:
+- a typed key goes nowhere: the key pops, nothing appears, and XCUITest reports that no element has keyboard focus;
+- a tap outside doesn't close the keyboard;
+- the address can't be reached.
+
+It stayed that way for more than 10 s, until the test ended. It happened in 2 of 2 runs. The TestFlight notes send friends to exactly this screen, so they'd be stuck in Private behind a keyboard.
+- **Evidence:**
+  - `R6b-limits-done.png` (#550–#595) and `R6b-limitsdone.png` (#588–#636; the "w" key pops at #628 with no text);
+  - `critic/r6b/testLimitsDone-glass-light.log`: `FIELD EXISTS false KEYBOARD true BAR false`, and still `KEYBOARD true` after a tap outside and after tapping the address;
+  - `critic/r6b/testPrivateLoop-glass-light.log`: "Neither element nor any descendant has keyboard focus".
+- **Likely cause:** `side.openLimits` (`BrowserView`) calls `browser.closeField()` and then `PrivateLimits.present()` in the same turn. The address field is still first responder when the list presents, so UIKit gives it focus back on dismissal, while Field thinks the field is closed and keeps it hidden. Fixes:
+  - end editing synchronously (`resignFirstResponder` or `endEditing(true)`) before presenting;
+  - or present once the field's close has finished;
+  - or have the field refuse focus while the flow is in `.bar`.
+
+  Check with `PrivateTour.testWelcomeLink` extended to tap Done and then type.
+
+### Verdict: send to friends? **No, not yet.**
+
+Every P6 item is fixed on video, fb4b57e is right, and the core loop is unchanged. But the P6-04 fix leaves a friend stuck behind a keyboard on a screen the TestFlight notes tell them to visit (P6-14). Fix that, re-run `PrivateTour.testWelcomeLink` with Done and a keystroke, and then send.

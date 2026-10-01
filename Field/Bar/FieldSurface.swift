@@ -118,6 +118,7 @@ final class FieldSurface: UIViewController {
         rider.addSubview(surface)
         rows.didMove(toParent: self)
         starred.install(in: self, rider: rider, above: Self.gap + Bar.height + 12)
+        surface.field.mayFocus = { [weak self] in self?.flow.phase == .field }
         starred.onOpen = { [weak self] in self?.go(to: $0) }
         starred.onShowSaved = { [weak self] start in
             guard let self else { return }

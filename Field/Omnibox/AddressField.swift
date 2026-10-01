@@ -81,6 +81,10 @@ enum AddressField {
         var onTouch: (() -> Void)?
         /// The page the field still stands for, untouched.
         var page: (() -> URL?)?
+        /// Whether the field is up to be typed in. Never focused when it
+        /// isn't: UIKit hands focus back to whatever had it before a sheet,
+        /// and a field closed meanwhile would take the keyboard while hidden.
+        var mayFocus: () -> Bool = { true }
         private(set) var pasting = false
         /// Set while the selection is the field's own proposal, which wears
         /// its tenth of ink as a background instead. With no rects, UIKit has
@@ -103,6 +107,10 @@ enum AddressField {
         }
 
         required init?(coder: NSCoder) { fatalError() }
+
+        override var canBecomeFirstResponder: Bool {
+            mayFocus() && super.canBecomeFirstResponder
+        }
 
         override func selectionRects(for range: UITextRange) -> [UITextSelectionRect] {
             proposing ? [] : super.selectionRects(for: range)
