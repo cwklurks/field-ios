@@ -272,3 +272,8 @@ It stayed that way for more than 10 s, until the test ended. It happened in 2 of
 ### Verdict: send to friends? **No, not yet.**
 
 Every P6 item is fixed on video, fb4b57e is right, and the core loop is unchanged. But the P6-04 fix leaves a friend stuck behind a keyboard on a screen the TestFlight notes tell them to visit (P6-14). Fix that, re-run `PrivateTour.testWelcomeLink` with Done and a keystroke, and then send.
+
+## Final check: efa9652
+
+**P6-14 is fixed.** I closed "What Private can't do", Settings and Saved in turn, each with Done. After each one there was no keyboard. A tap on the address opened the field, and typing "wea" completed to weather.gov (`critic/r6c/testFinalSheets-glass-light.log`, `R6c-final-contact.png`). `PrivateTour.testWelcomeLink` passes. The glass-light core loop is unchanged at L+1 or L+2: tap, type, Go, cancel, scroll and grid.
+**Send to friends: yes.**
