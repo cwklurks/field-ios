@@ -11,12 +11,15 @@ public enum Stale {
         public let id: UUID
         /// Empty for a blank tab.
         public let url: String
+        /// Tells two anchors on one page apart from two pages.
+        public let title: String
         /// Nil for a tab Field hasn't timed yet: never stale on age.
         public let viewed: Date?
 
-        public init(id: UUID, url: String, viewed: Date?) {
+        public init(id: UUID, url: String, title: String = "", viewed: Date?) {
             self.id = id
             self.url = url
+            self.title = title
             self.viewed = viewed
         }
     }
@@ -52,19 +55,24 @@ public enum Stale {
         }.map(\.id)
 
         // The copy to keep at each address: the one on screen, or else the
-        // one looked at last, or else the first.
-        var keep: [String: Tab] = [:]
+        // one looked at last, or else the first. Addresses are compared
+        // within a page, a few at most, so this stays a hash lookup.
+        var keep: [String: [(tab: Tab, address: Address)]] = [:]
         for tab in tabs {
-            guard let address = address(tab.url) else { continue }
-            guard let kept = keep[address] else { keep[address] = tab; continue }
+            guard let address = Address(tab) else { continue }
+            guard let i = keep[address.page]?.firstIndex(where: { $0.address.isSame(as: address) }),
+                  let kept = keep[address.page]?[i].tab else {
+                keep[address.page, default: []].append((tab, address))
+                continue
+            }
             if kept.id == current { continue }
             if tab.id == current || (tab.viewed ?? .distantPast) > (kept.viewed ?? .distantPast) {
-                keep[address] = tab
+                keep[address.page]?[i] = (tab, address)
             }
         }
+        let kept = Set(keep.values.flatMap { $0.map(\.tab.id) })
         let duplicates = tabs.filter { tab in
-            guard let address = address(tab.url) else { return false }
-            return keep[address]?.id != tab.id
+            !tab.url.isEmpty && !kept.contains(tab.id)
         }.map(\.id)
         return Found(untouched: untouched, duplicates: duplicates)
     }
@@ -88,10 +96,55 @@ public enum Stale {
         return days == 1 ? "a day" : "\(days) days"
     }
 
-    /// The address without its fragment: #top is the same page. Nil for a
-    /// blank tab.
-    private static func address(_ url: String) -> String? {
-        guard !url.isEmpty else { return nil }
-        return url.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init)
+    /// A tab's address as the duplicate check sees it: the page, normalised,
+    /// and the fragment apart from it.
+    private struct Address {
+        /// Lowercase scheme and host, no default port, no `/` for an empty
+        /// path, no tracking parameters; no fragment.
+        let page: String
+        /// Nil when there is none.
+        let fragment: String?
+        let title: String
+
+        /// Strips the tracking parameters Field's guard knows. Its bundled
+        /// rules are read once, after the first frame, so a grid finds them
+        /// ready.
+        private static let tracking = Guard(rules: .bundled)
+
+        /// Nil for a blank tab.
+        init?(_ tab: Tab) {
+            guard !tab.url.isEmpty else { return nil }
+            title = tab.title
+            guard let url = URL(string: tab.url),
+                  var parts = URLComponents(url: Self.tracking.stripped(url), resolvingAgainstBaseURL: false) else {
+                // Not an address Foundation reads: the text, less its fragment.
+                let pieces = tab.url.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+                page = String(pieces[0])
+                fragment = pieces.count > 1 && !pieces[1].isEmpty ? String(pieces[1]) : nil
+                return
+            }
+            let fragment = parts.percentEncodedFragment
+            parts.percentEncodedFragment = nil
+            parts.scheme = parts.scheme?.lowercased()
+            parts.host = parts.host?.lowercased()
+            if let port = parts.port, port == (parts.scheme == "https" ? 443 : parts.scheme == "http" ? 80 : nil) {
+                parts.port = nil
+            }
+            if parts.path == "/" { parts.path = "" }
+            page = parts.string ?? tab.url
+            self.fragment = fragment?.isEmpty == false ? fragment : nil
+        }
+
+        /// `#/inbox` and `#!/x` are where a hash-routed app is.
+        private var isRoute: Bool { fragment.map { $0.hasPrefix("/") || $0.hasPrefix("!") } ?? false }
+
+        /// The same address; or, when only a plain in-page anchor tells them
+        /// apart (`#intro`, `#usage`), the same page, which the title bears
+        /// out. A route is a page of its own.
+        func isSame(as other: Address) -> Bool {
+            guard page == other.page else { return false }
+            if fragment == other.fragment { return true }
+            return !isRoute && !other.isRoute && title == other.title
+        }
     }
 }

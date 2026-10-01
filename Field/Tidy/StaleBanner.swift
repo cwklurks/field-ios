@@ -17,7 +17,7 @@ enum StaleTabs {
 
     /// What's stale among `tabs` (never the private ones), `current` aside.
     static func find(_ tabs: [Session.Entry], current: UUID?, now: Date = .now) -> Stale.Found {
-        Stale.find(tabs.map { Stale.Tab(id: $0.id, url: $0.url, viewed: $0.viewed) },
+        Stale.find(tabs.map { Stale.Tab(id: $0.id, url: $0.url, title: $0.title, viewed: $0.viewed) },
                    current: current, now: now, days: days)
     }
 

@@ -9,8 +9,8 @@ struct StaleTests {
     static let id = TidyTests.id
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    func tab(_ n: Int, _ url: String, daysAgo: Double?) -> Stale.Tab {
-        Stale.Tab(id: Self.id(n), url: url, viewed: daysAgo.map { now.addingTimeInterval(-$0 * 86_400) })
+    func tab(_ n: Int, _ url: String, title: String = "", daysAgo: Double?) -> Stale.Tab {
+        Stale.Tab(id: Self.id(n), url: url, title: title, viewed: daysAgo.map { now.addingTimeInterval(-$0 * 86_400) })
     }
 
     func find(_ tabs: [Stale.Tab], current: Int? = nil, days: Int = 14) -> Stale.Found {
@@ -62,6 +62,68 @@ struct StaleTests {
     /// Only the fragment differs: the same page.
     @Test func aFragmentIsTheSamePage() {
         let found = find([tab(1, "https://a.com/x#top", daysAgo: 2), tab(2, "https://a.com/x", daysAgo: 1)])
+        #expect(found.duplicates == [Self.id(1)])
+    }
+
+    /// On a hash-routed app the fragment is the page.
+    @Test func routedFragmentsAreDifferentPages() {
+        let mail = find([
+            tab(1, "https://mail.google.com/mail/u/0/#inbox", title: "Inbox", daysAgo: 2),
+            tab(2, "https://mail.google.com/mail/u/0/#drafts", title: "Drafts", daysAgo: 1),
+        ])
+        #expect(mail.duplicates.isEmpty)
+        let app = find([
+            tab(1, "https://a.com/app#/settings", daysAgo: 2),
+            tab(2, "https://a.com/app#/profile", daysAgo: 1),
+            tab(3, "https://a.com/app#!/x", daysAgo: 1),
+            tab(4, "https://a.com/app", daysAgo: 1),
+        ])
+        #expect(app.duplicates.isEmpty)
+        let same = find([tab(1, "https://a.com/app#/inbox", daysAgo: 2), tab(2, "https://a.com/app#/inbox", daysAgo: 1)])
+        #expect(same.duplicates == [Self.id(1)])
+    }
+
+    /// Anchors within one page, under one title, are the one page.
+    @Test func anchorsUnderOneTitleAreTheSamePage() {
+        let found = find([
+            tab(1, "https://a.com/docs#intro", title: "Docs", daysAgo: 2),
+            tab(2, "https://a.com/docs#usage", title: "Docs", daysAgo: 1),
+        ])
+        #expect(found.duplicates == [Self.id(1)])
+    }
+
+    @Test func anchorsUnderDifferentTitlesAreDifferentPages() {
+        let found = find([
+            tab(1, "https://a.com/docs#intro", title: "Intro", daysAgo: 2),
+            tab(2, "https://a.com/docs#usage", title: "Usage", daysAgo: 1),
+            tab(3, "https://a.com/docs", title: "Docs", daysAgo: 1),
+        ])
+        #expect(found.duplicates.isEmpty)
+    }
+
+    /// A page whose title changed is still the one address.
+    @Test func theSameAddressIsADuplicateWhateverTheTitle() {
+        let found = find([tab(1, "https://a.com/x", title: "Loading", daysAgo: 2), tab(2, "https://a.com/x", title: "X", daysAgo: 1)])
+        #expect(found.duplicates == [Self.id(1)])
+    }
+
+    @Test func schemeHostAndDefaultPortAreNormalised() {
+        let found = find([
+            tab(1, "HTTPS://Example.com:443/", daysAgo: 2),
+            tab(2, "https://example.com", daysAgo: 1),
+            tab(3, "http://example.com:80/x", daysAgo: 2),
+            tab(4, "http://EXAMPLE.com/x", daysAgo: 1),
+            tab(5, "https://example.com:8443/", daysAgo: 1),
+        ])
+        #expect(found.duplicates == [Self.id(1), Self.id(3)])
+    }
+
+    @Test func trackingParametersAreIgnored() {
+        let found = find([
+            tab(1, "https://a.com/x?id=7&utm_source=news", daysAgo: 2),
+            tab(2, "https://a.com/x?id=7", daysAgo: 1),
+            tab(3, "https://a.com/x?id=8", daysAgo: 1),
+        ])
         #expect(found.duplicates == [Self.id(1)])
     }
 
