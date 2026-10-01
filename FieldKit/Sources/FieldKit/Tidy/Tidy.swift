@@ -72,18 +72,19 @@ public enum Tidy {
         // 1. Same site, two or more different addresses. Kept in first-seen
         // order so the answer never depends on dictionary iteration.
         var bySite: [String: [Int]] = [:]
+        var names: [String: String] = [:]
         var sites: [String] = []
         for i in reps {
-            guard let host = hosts[i] else { continue }
-            let key = site(host)
-            if bySite[key] == nil { sites.append(key) }
-            bySite[key, default: []].append(i)
+            guard let place = place(of: tabs[i].url, site: site) else { continue }
+            if bySite[place.key] == nil { sites.append(place.key) }
+            bySite[place.key, default: []].append(i)
+            names[place.key] = place.name
         }
         for key in sites {
             let members = bySite[key]!
             guard members.count >= 2 else { continue }
             for i in members { placed.insert(i) }
-            groups.append((cap(displayName(key)), members))
+            groups.append((cap(names[key] ?? key), members))
         }
 
         // 2. Everything else, by meaning.
@@ -230,6 +231,33 @@ public enum Tidy {
 
     private static func capitalised(_ word: String) -> String {
         word.isEmpty ? word : word.prefix(1).uppercased() + word.dropFirst()
+    }
+
+    /// Domains many unrelated products share. On these a tab's place is its
+    /// host (mail.google.com, Gmail, isn't Google Flights), or on the bare
+    /// domain its first path segment (google.com/travel), and on Reddit its
+    /// community (r/thinkpad isn't r/Breadit).
+    static let sharedDomains: Set<String> = [
+        "google.com", "apple.com", "reddit.com", "amazon.com", "microsoft.com", "yahoo.com",
+        "live.com", "bing.com", "facebook.com", "icloud.com", "blogspot.com", "wordpress.com",
+        "substack.com", "tumblr.com", "medium.com",
+    ]
+
+    /// Where a tab is, for the same-site pass: a key tabs in the same place
+    /// share, and a name for their group. Its site, but on a shared domain
+    /// the product within it (see sharedDomains). Nil with no host.
+    static func place(of url: URL, site: (String) -> String) -> (key: String, name: String)? {
+        guard let host = host(of: url) else { return nil }
+        let domain = site(host)
+        guard sharedDomains.contains(domain) else { return (domain, displayName(domain)) }
+        guard host == domain else { return (host, displayName(host)) }
+        let path = url.pathComponents.filter { $0 != "/" }
+        if domain == "reddit.com", path.count >= 2, ["r", "u", "user"].contains(path[0].lowercased()) {
+            let community = "\(path[0].lowercased())/\(path[1])"
+            return ("\(domain)/\(community.lowercased())", community)
+        }
+        guard let first = path.first?.lowercased() else { return (domain, displayName(domain)) }
+        return ("\(domain)/\(first)", "\(displayName(domain)) \(capitalised(first))")
     }
 
     /// The site's name when it is a well-known one (github.com is GitHub),

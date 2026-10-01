@@ -13,6 +13,8 @@ import os
 @MainActor @Observable final class Tabs {
     private(set) var all: [Tab]
     private(set) var current: Tab
+    /// Tidy's groups, in the grid's order; only ones some tab is in.
+    private(set) var groups: [Session.Group] = []
     /// The tab grid is up, or on its way up.
     private(set) var gridShown = false
     @ObservationIgnored private(set) var closed = RecentlyClosed<Session.Entry>()
@@ -21,6 +23,10 @@ import os
     @ObservationIgnored let store: SessionStore
     /// Draws all of this. Nil in the unit tests, where nothing moves.
     @ObservationIgnored weak var stage: Stage?
+    /// Private's, when these are its tabs: every tab made here gets it.
+    @ObservationIgnored weak var space: PrivateSpace? {
+        didSet { all.forEach { $0.space = space } }
+    }
     /// Hooked up to every tab.
     @ObservationIgnored var announce: (String) -> Void = { _ in }
     @ObservationIgnored var offer: (String, Toaster.Offer) -> Void = { _, _ in }
@@ -51,6 +57,7 @@ import os
         let restored = shape.tabs.map { Tab(history: history, entry: $0) }
         let list = restored.isEmpty ? [Tab(history: history)] : restored
         all = list
+        groups = shape.groups
         current = list[restored.isEmpty ? 0 : shape.active]
         all.forEach(wire)
         current.show()
@@ -78,11 +85,13 @@ import os
             // Last run's pictures; only ever the perf tests', so here and now is fine.
             try? FileManager.default.removeItem(at: seedDirectory)
             let snapshots = Snapshots(directory: seedDirectory)
-            var entries = Tabs.seed(seed)
+            // `-FieldSeedTidy YES`: real-looking pages for Tidy, some untouched for weeks.
+            var entries = UserDefaults.standard.bool(forKey: "FieldSeedTidy") ? Tabs.seedTidy() : Tabs.seed(seed)
+            let drawn = entries.count
             if let opening { entries.append(Session.Entry(url: opening.absoluteString, title: "")) }
             let tabs = Tabs(history: history, restoring: Session.Shape(tabs: entries, active: entries.count - 1),
                             store: SessionStore(directory: nil), snapshots: snapshots)
-            tabs.drawSeedPictures(entries.prefix(seed))
+            tabs.drawSeedPictures(entries.prefix(drawn))
             return tabs
         }
         let store = SessionStore(directory: URL.applicationSupportDirectory.appending(path: "Field", directoryHint: .isDirectory))
@@ -102,7 +111,34 @@ import os
     var index: Int { all.firstIndex { $0 === current } ?? 0 }
 
     var shape: Session.Shape {
-        Session.Shape(tabs: all.map(\.entry), active: index)
+        Session.Shape(tabs: all.map(\.entry), active: index, groups: groups)
+    }
+
+    /// Which tab is in which group, as Tidy reads and sets it. Read from
+    /// the tabs, not their entries, which the grid can't wait for.
+    var grouping: Session.Grouping {
+        Session.Grouping(groups: groups, membership: Dictionary(
+            all.compactMap { tab in tab.group.map { (tab.id, $0) } }, uniquingKeysWith: { first, _ in first }))
+    }
+
+    /// Tidy's Apply, Undo or Ungroup: every tab's group at once. A group
+    /// left with no tabs goes; the grid moves its cards into place.
+    func regroup(_ grouping: Session.Grouping) {
+        let known = Set(grouping.groups.map(\.id))
+        for tab in all { tab.group = grouping.membership[tab.id].flatMap { known.contains($0) ? $0 : nil } }
+        let used = Set(all.compactMap(\.group))
+        groups = grouping.groups.filter { used.contains($0.id) }
+        stage?.regrouped()
+        changed()
+    }
+
+    /// A group's new name.
+    func rename(_ group: UUID, to name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let i = groups.firstIndex(where: { $0.id == group }) else { return }
+        groups[i].name = name
+        stage?.regrouped()
+        changed()
     }
 
     /// The tab `step` places along, if there is one.
@@ -184,11 +220,35 @@ import os
     }
 
     func close(_ tab: Tab) {
+        close(tab, keepingPictures: false)
+    }
+
+    /// Tabs closed together (the stale ones, never the one on screen): each
+    /// goes to Recently Closed as one closed alone does, and the Undo
+    /// returned brings back every one, however many, where it was. Recently Closed holds 20; the
+    /// pictures of those it lets go stay until the next launch prunes them,
+    /// for the Undo.
+    func close(all gone: [Tab]) -> () -> Void {
+        let places = all.enumerated().filter { _, tab in gone.contains { $0 === tab } }.map { ($0.offset, $0.element.entry) }
+        for tab in gone { close(tab, keepingPictures: true) }
+        return { [weak self] in
+            guard let self else { return }
+            for (index, entry) in places {
+                if let position = closed.items.firstIndex(where: { $0.id == entry.id }) { closed.remove(at: position) }
+                let tab = Tab(history: history, entry: entry)
+                wire(tab)
+                all.insert(tab, at: min(index, all.count))
+            }
+            changed()
+        }
+    }
+
+    private func close(_ tab: Tab, keepingPictures: Bool) {
         guard let i = all.firstIndex(where: { $0 === tab }) else { return }
         // Its picture stays on disk while it can still be reopened.
         if tab.url == nil {
             snapshots.remove(tab.id)
-        } else if let dropped = closed.push(tab.entry, at: i) {
+        } else if let dropped = closed.push(tab.entry, at: i), !keepingPictures {
             snapshots.remove(dropped.id)
         }
         tab.sleep()
@@ -231,6 +291,7 @@ import os
     }
 
     private func wire(_ tab: Tab) {
+        tab.space = space
         tab.announce = { [weak self] in self?.announce($0) }
         tab.offer = { [weak self] in self?.offer($0, $1) }
         tab.openTab = { [weak self] in self?.openBeside($0) }
@@ -297,6 +358,27 @@ import os
             let url = "data:text/html," + (html.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")
             return Session.Entry(url: url, title: "Seeded tab \(i + 1)")
         }
+    }
+
+    /// Twelve pages as a person might have them open, for Tidy's tours: a
+    /// trip, a laptop, bread (untouched for three weeks) and mail. Only
+    /// their pictures are made up.
+    static func seedTidy() -> [Session.Entry] {
+        let list: [(String, String, Double)] = [
+            ("Lisbon (LIS) flights from London | Google Flights", "https://www.google.com/travel/flights/search?q=LHR-LIS", 1),
+            ("Memmo Alfama Hotel, Lisbon – Booking.com", "https://www.booking.com/hotel/pt/memmo-alfama.html", 1),
+            ("Tram 28 in Lisbon: route, tickets and tips | Time Out", "https://www.timeout.com/lisbon/things-to-do/tram-28", 2),
+            ("ThinkPad X1 Carbon Gen 13 | Lenovo US", "https://www.lenovo.com/us/en/p/laptops/thinkpad/thinkpadx1/x1-carbon-gen-13", 0.5),
+            ("X1 Carbon vs T14s Gen 6, which one? : r/thinkpad", "https://www.reddit.com/r/thinkpad/comments/1abc/x1_carbon_vs_t14s/", 0.6),
+            ("Best trackpoint caps? : r/thinkpad", "https://www.reddit.com/r/thinkpad/comments/1abd/trackpoint_caps/", 0.6),
+            ("Simple Sourdough Starter | King Arthur Baking", "https://www.kingarthurbaking.com/recipes/sourdough-starter-recipe", 20),
+            ("A Beginner's Sourdough Bread Recipe | The Perfect Loaf", "https://www.theperfectloaf.com/beginners-sourdough-bread/", 20),
+            ("Which size Dutch oven for a 1kg loaf? : r/Breadit", "https://www.reddit.com/r/Breadit/comments/1xyz/dutch_oven_size/", 22),
+            ("Inbox (3) - Gmail", "https://mail.google.com/mail/u/0/#inbox", 0.05),
+            ("Drafts - Gmail", "https://mail.google.com/mail/u/0/#drafts", 0.05),
+            ("Lisbon (LIS) flights from London | Google Flights", "https://www.google.com/travel/flights/search?q=LHR-LIS&return", 6),
+        ]
+        return list.map { Session.Entry(url: $0.1, title: $0.0, viewed: Date.now.addingTimeInterval(-$0.2 * 86_400)) }
     }
 
     /// Their pictures, drawn off the main thread as a real one would be

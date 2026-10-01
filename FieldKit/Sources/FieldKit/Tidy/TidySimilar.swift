@@ -4,7 +4,8 @@ import Foundation
 // nothing, start from a group the person already has and find the loose
 // tabs that belong with it. Mozilla found this beat clustering everything.
 // This is the rule used when there's no language model: a tab joins when
-// it's on a site at least half the group (and two of its tabs) is on, or
+// it's on a site (a product, on a shared domain: Tidy.place) at least half the
+// group (and two of its tabs) is on, or
 // when its title reads like the group's, by the same average cosine
 // distance the fallback's clustering cuts at.
 
@@ -17,15 +18,15 @@ extension Tidy {
 
         var siteCounts: [String: Int] = [:]
         for tab in members {
-            guard let host = host(of: tab.url) else { continue }
-            siteCounts[site(host), default: 0] += 1
+            guard let place = place(of: tab.url, site: site) else { continue }
+            siteCounts[place.key, default: 0] += 1
         }
         let groupSites = Set(siteCounts.filter { $0.value >= 2 && $0.value * 2 >= members.count }.keys)
 
         let vectors = members.compactMap { vector(for: $0, embed: embed) }
         return candidates.filter { tab in
-            guard !memberIDs.contains(tab.id), let host = host(of: tab.url) else { return false }
-            if groupSites.contains(site(host)) { return true }
+            guard !memberIDs.contains(tab.id), let place = place(of: tab.url, site: site) else { return false }
+            if groupSites.contains(place.key) { return true }
             guard !vectors.isEmpty, let own = vector(for: tab, embed: embed) else { return false }
             let mean = vectors.reduce(0) { $0 + (1 - cosine(own, $1)) } / Double(vectors.count)
             return mean < mergeBelow

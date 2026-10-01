@@ -18,6 +18,7 @@ enum PrivateLimitsText {
         ("camera.viewfinder", "Screenshots. iOS has no way for an app to stop them, or a photo of the screen."),
         ("keyboard", "The keyboard. iOS may still learn words you type into pages."),
         ("network", "Your IP address. Networks and websites still see it. Private isn't a VPN."),
+        ("gearshape.2", "Pages' background workers. They can still use WebTransport, which Private's protections don't reach."),
         ("square.and.arrow.up", "Anything you save, copy or share. It leaves Private."),
         ("lock.open", "Anyone who knows your passcode can unlock it."),
     ]

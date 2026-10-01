@@ -4,10 +4,11 @@ import SwiftUI
 /// bar's place.
 struct BrowserView: View {
     let browser: Browser
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            StageView(tabs: browser.tabs, bar: browser.bar, openSaved: {
+            StageView(browser: browser, openSaved: {
                 SavedSheets.showList(browser.saved) { url in
                     // Opened in the tab on screen, whose card grows into the page.
                     browser.go(to: url)
@@ -31,11 +32,13 @@ struct BrowserView: View {
                         .transition(.opacity)
                 }
             }
+            // Private is always dark, but only what belongs to it.
+            .environment(\.colorScheme, browser.privately ? .dark : colorScheme)
 
-            if !browser.tabs.gridShown {
-                Toast(toaster: browser.toaster)
-                    .padding(.bottom, Bar.height + 14)
-            }
+            // Over the grid too, where Tidy's and the stale tabs' Undo are.
+            Toast(toaster: browser.toaster)
+                .padding(.bottom, Bar.height + 14)
+                .environment(\.colorScheme, browser.privately ? .dark : colorScheme)
 
             // The bar, which is also the field: one surface on the keyboard.
             // It lays itself out against the window and the keyboard.
@@ -56,6 +59,10 @@ struct BrowserView: View {
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }
             SavedSheets.prepareSoon(browser.saved) {
+                let scroll = browser.tab.web?.scrollView
+                return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
+            }
+            TidySheets.prepareSoon {
                 let scroll = browser.tab.web?.scrollView
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }

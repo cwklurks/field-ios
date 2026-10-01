@@ -38,8 +38,7 @@ import WebKit
         let tabs = Tabs(history: history, restoring: .init(), store: SessionStore(directory: nil), snapshots: Snapshots(directory: nil))
         // The app is up; a private tab may wake as soon as it's shown.
         tabs.started = true
-        // Once Tabs has its `space` (docs/integration/private.md, step 1):
-        // tabs.space = self
+        tabs.space = self
         self.history = history
         files = PrivateFiles(root: temporary, since: .now)
         self.tabs = tabs

@@ -237,6 +237,7 @@ final class FieldSurface: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         warmSoon()
+        if let scene = view.window?.windowScene { browser.capture.attach(to: scene) }
     }
 
     /// Everything read here is watched: UIKit calls this again when any of
@@ -244,6 +245,19 @@ final class FieldSurface: UIViewController {
     override func updateProperties() {
         super.updateProperties()
         let page = page
+        // The bar and the field are Private's own dark while it's on screen,
+        // from before the field opens there, so it never rises light: the
+        // new look reaches every view now, not at the next layout, which
+        // would fade it in on the field's own curve.
+        let style: UIUserInterfaceStyle = browser.privately ? .dark : .unspecified
+        if view.overrideUserInterfaceStyle != style {
+            view.overrideUserInterfaceStyle = style
+            UIView.performWithoutAnimation {
+                paintTone()
+                view.updateTraitsIfNeeded()
+            }
+        }
+        surface.bar.privately = browser.privately
         surface.bar.show(url: goingTo ?? page.url, loading: page.isLoading, canGoBack: page.canGoBack, canGoForward: page.canGoForward)
         if flow.phase == .bar { place() }
         // Another tab is read afresh, at once, even when neither has a page
@@ -323,9 +337,11 @@ final class FieldSurface: UIViewController {
             SavedSheets.save(url, title: tab.title, in: browser.saved)
         }
         let passing = UIMenu(options: .displayInline, children: [
-            UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in Guarded.copy(url) },
+            UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [browser] _ in
+                browser.privately ? PrivatePasteboard.copy(url) : Guarded.copy(url)
+            },
             UIAction(title: "Share…", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in self?.share(url) },
-        ])
+        ] + [browser.capture.menu(presenter: self, source: surface.bar.address)].compactMap { $0 })
         return [save, passing, ContentBlocking.shared.shieldAction(for: url, reload: tab.reload)].compactMap { $0 }
     }
 
@@ -460,6 +476,14 @@ final class FieldSurface: UIViewController {
     /// and the frame after it goes out at once.
     private func prepare() {
         guard flow.phase != .field else { return }
+        draft()
+    }
+
+    /// A new draft from the page's address. Opened from the code (a new
+    /// tab, Private) rather than a finger, the field needs its own: the
+    /// finger's is only for its tap, and one left from a long press, or the
+    /// last thing typed, may be another tab's, or a wiped Private session's.
+    private func draft() {
         let omnibox = Omnibox(initial: page.url, history: browser.history)
         coordinator.omnibox = omnibox
         coordinator.show(surface.field)
@@ -472,7 +496,7 @@ final class FieldSurface: UIViewController {
             FieldOpening.begin()
             opened = .now
         }
-        if !prepared { prepare() }
+        if !(tapped && prepared) { draft() }
         prepared = false
         hiding = nil
         held = false
@@ -820,9 +844,10 @@ final class FieldSurface: UIViewController {
         SurfaceMotion.animate(.glide(velocity: spring)) { self.place() } completion: { _ in done() }
     }
 
+    /// The glass takes the page's tone, but in Private it stays Private's dark.
     private func paintTone() {
         let bar = flow.phase != .field
-        let tone: UIUserInterfaceStyle = switch (bar && look == .glass) ? pageTone : nil {
+        let tone: UIUserInterfaceStyle = switch (bar && look == .glass && !browser.privately) ? pageTone : nil {
         case .dark?: .dark
         case .light?: .light
         default: .unspecified

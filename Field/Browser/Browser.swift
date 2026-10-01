@@ -6,11 +6,20 @@ import UIKit
 @MainActor @Observable final class Browser {
     let history: HistoryStore
     let saved: SavedStore
-    let tabs: Tabs
+    /// Your tabs, kept from one launch to the next.
+    let everyday: Tabs
+    let privateSpace = PrivateSpace()
+    @ObservationIgnored private(set) lazy var gate = makeGate()
+    /// Private's tabs are on screen.
+    private(set) var privately = false
+    /// On screen: Private's tabs, or your everyday ones.
+    var tabs: Tabs { privately ? privateSpace.tabs ?? everyday : everyday }
     /// The one on screen.
     var tab: Tab { tabs.current }
     let bar = BarState()
     let toaster = Toaster()
+    /// The whole page, as a file to share or the screenshot's Full Page (Field/Capture).
+    let capture: Capture
     /// The field is up and focused, over the page, in place of the bar.
     /// Never in the first frame: a blank tab's field is drawn in it (see
     /// opensInField) but focused the turn after (see start), since focusing
@@ -31,18 +40,21 @@ import UIKit
     /// `restoring` false starts from one blank tab and keeps no session:
     /// the unit tests, which mustn't read the simulator's.
     init(restoring: Bool = true) {
+        capture = Capture(page: { nil }, announce: { [toaster] in toaster.show($0) })
         history = HistoryStore(directory: URL.applicationSupportDirectory.appending(path: "Field", directoryHint: .isDirectory))
         saved = SavedStore(directory: URL.applicationSupportDirectory.appending(path: "Field", directoryHint: .isDirectory))
         // The last session, or with `-FieldOpen <url>` or `-FieldSeedTabs N`
         // the perf tests' tabs. A blank tab is the field, ready to type in.
-        tabs = restoring
+        everyday = restoring
             ? Tabs.launch(history: history)
             : Tabs(history: history, restoring: .init(), store: SessionStore(directory: nil), snapshots: Snapshots(directory: nil))
-        tabs.announce = { [toaster] in toaster.show($0) }
-        tabs.offer = { [toaster] in toaster.show($0, offering: $1) }
-        tabs.committed = { [bar] in bar.expand() }
-        tabs.openField = { [weak self] in self?.openField() }
-        tabs.finished = { [saved] in saved.opened($0) }
+        everyday.announce = { [toaster] in toaster.show($0) }
+        everyday.offer = { [toaster] in toaster.show($0, offering: $1) }
+        everyday.committed = { [bar] in bar.expand() }
+        everyday.openField = { [weak self] in self?.openField() }
+        everyday.finished = { [saved] in saved.opened($0) }
+        capture.page = { [weak self] in self?.tab }
+        capture.isPrivate = { [weak self] in self?.privately ?? false }
     }
 
     /// A blank tab, not yet started: the surface is the field from the first
@@ -57,7 +69,7 @@ import UIKit
     func start() {
         guard !started else { return }
         started = true
-        tabs.started = true
+        everyday.started = true
         Signpost.log.emitEvent("launch.start")
         if tab.url != nil {
             tab.build()
@@ -139,7 +151,7 @@ import UIKit
         Task {
             await history.flush()
             await saved.flush()
-            await tabs.flush()
+            await everyday.flush()
             UIApplication.shared.endBackgroundTask(task)
         }
     }
@@ -165,4 +177,46 @@ import UIKit
     }
 
     private func announce(_ text: String) { toaster.show(text) }
+
+    // MARK: - Private
+
+    /// From the grid's switch. The strip slides at once (StageView); the
+    /// session's tabs are made now if it's a new one.
+    func enterPrivate() {
+        let fresh = privateSpace.tabs == nil
+        let tabs = privateSpace.open()
+        if fresh { wirePrivate(tabs) }
+        tabs.chrome = everyday.chrome
+        privately = true
+        gate.entered()
+        // A new session opens on its blank tab with the field, rising with the slide.
+        if fresh { openField() }
+    }
+
+    func leavePrivate() {
+        closeField()
+        privately = false
+        gate.left()
+    }
+
+    /// The hooks everyday tabs have, less Saved's `finished`.
+    private func wirePrivate(_ tabs: Tabs) {
+        tabs.announce = { [toaster] in toaster.show($0) }
+        tabs.offer = { [toaster] in toaster.show($0, offering: $1) }
+        tabs.committed = { [bar] in bar.expand() }
+        tabs.openField = { [weak self] in self?.openField() }
+    }
+
+    private func makeGate() -> PrivateGate {
+        let gate = PrivateGate(space: privateSpace)
+        gate.leave = { [weak self] in self?.leavePrivate() }
+        // Wiped while inside (wipe-instead, or the clock): a new session, empty.
+        gate.wiped = { [weak self] in
+            guard let self, self.privately else { return }
+            self.wirePrivate(self.privateSpace.open())
+            self.privateSpace.tabs?.chrome = self.everyday.chrome
+            self.openField()
+        }
+        return gate
+    }
 }

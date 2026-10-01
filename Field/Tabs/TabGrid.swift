@@ -1,3 +1,4 @@
+import FieldKit
 import UIKit
 
 /// Every tab as a card, two to a row, over the ground, with a row along the
@@ -14,7 +15,8 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     let scroll = UIScrollView()
     private let tabs: Tabs
     private let row = UIView()
-    private let count = UILabel()
+    /// The count, and the way into Private beside it (PrivateSwitch).
+    private let count = PrivateSwitch()
     private let settings = UIButton(type: .system)
     private let savedButton = UIButton(type: .system)
     private let new = UIButton(type: .system)
@@ -26,12 +28,33 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     private var loose: [TabCard] = []
     /// The offset is being set under a reflow, which places the cards itself.
     private var reflowing = false
+    /// Tidy's groups, each with its tabs, then the loose ones: the cards'
+    /// order, which a card's index runs through (GridLayout).
+    private var sections: [Session.Grouping.Section<Tab>] = []
+    private var order: [Tab] = []
+    /// Each group's name over its cards; a long press for its menu.
+    private var headers: [UUID: UIButton] = [:]
+    /// The headers' names and menus are the groups' as they are now.
+    private var headersFresh = false
+    /// "12 tabs untouched for 2 weeks · Review / Close", over the cards.
+    private var banner: UIView?
+    private var bannerLine: String?
+    private lazy var tidyButton = TidyButton.make { [weak self] in self?.onTidy() }
 
     var onSelect: (Tab) -> Void = { _ in }
     var onNew: () -> Void = {}
     var onDone: () -> Void = {}
     var onSettings: () -> Void = {}
     var onSaved: () -> Void = {}
+    var onTidy: () -> Void = {}
+    /// A group header's "Add Similar Tabs".
+    var onSimilar: (Session.Group, [Tab]) -> Void = { _, _ in }
+    /// The switch, tapped: true to go into Private.
+    var onPrivate: (Bool) -> Void = { _ in }
+    /// A sideways drag on the row moves the strip 1:1 (PrivateStrip.track),
+    /// and lets go with the finger's speed.
+    var trackPrivate: (CGFloat) -> Void = { _ in }
+    var releasePrivate: (CGFloat) -> Void = { _ in }
 
     init(tabs: Tabs) {
         self.tabs = tabs
@@ -88,10 +111,15 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         }])
         row.addSubview(new)
 
-        count.font = UIFontMetrics(forTextStyle: .callout).scaledFont(for: .systemFont(ofSize: Ramp.row.size), maximumPointSize: 21)
-        count.textColor = Palette.UI.muted
-        count.textAlignment = .center
+        count.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.onPrivate(self.count.wantsPrivate)
+        }, for: .primaryActionTriggered)
         row.addSubview(count)
+        // On the row only: sideways on a card closes it.
+        let slide = UIPanGestureRecognizer(target: self, action: #selector(slid(_:)))
+        slide.delegate = self
+        row.addGestureRecognizer(slide)
 
         var finish = UIButton.Configuration.plain()
         var label = AttributedString("Done")
@@ -102,6 +130,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         done.accessibilityIdentifier = "tabs.done"
         done.addAction(UIAction { [weak self] _ in self?.onDone() }, for: .touchUpInside)
         row.addSubview(done)
+        row.addSubview(tidyButton)
         addSubview(row)
     }
 
@@ -110,18 +139,35 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     var layout: GridLayout {
         GridLayout(
             width: bounds.width,
-            count: tabs.all.count,
-            top: safeAreaInsets.top + 16,
+            sections: sections.map { GridLayout.Section(count: $0.items.count, named: $0.group != nil) },
+            top: bannerTop + (banner.map { $0.bounds.height + 12 } ?? 0),
             bottom: Self.rowHeight + safeAreaInsets.bottom + 16
         )
     }
 
+    private var bannerTop: CGFloat { safeAreaInsets.top + 16 }
+
+    /// The sections and the cards' order, from the tabs as they are now.
+    private func regroup() {
+        sections = tabs.grouping.sections(tabs.all, id: \.id)
+        order = sections.flatMap(\.items)
+        headersFresh = false
+    }
+
     /// Scrolled so the tab on screen is in the middle, laid out, now.
     func prepare() {
+        regroup()
+        showStale()
         setNeedsLayout()
         layoutIfNeeded()
-        scroll.contentOffset.y = layout.offset(showing: tabs.index, viewport: bounds.height)
+        scroll.contentOffset.y = layout.offset(showing: order.firstIndex { $0 === tabs.current } ?? 0, viewport: bounds.height)
         layoutCards()
+    }
+
+    /// Tidy's Apply, Undo or Ungroup: every card from where it is to its
+    /// place in its group, as the same card, and the names fading in and out.
+    func regrouped() {
+        reflow(from: order)
     }
 
     /// The row along the bottom comes in only once the bar has gone, and goes
@@ -149,9 +195,24 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         for view in row.subviews { view.alpha = 0 }
     }
 
+    /// The strip's progress, inside its animation: the lift moves with it.
+    func privateProgress(_ p: CGFloat) {
+        count.progress = p
+        count.layoutIfNeeded()
+    }
+
+    @objc private func slid(_ pan: UIPanGestureRecognizer) {
+        switch pan.state {
+        case .changed: trackPrivate(pan.translation(in: self).x)
+        case .ended, .cancelled: releasePrivate(pan.velocity(in: self).x)
+        default: break
+        }
+    }
+
     /// Where a tab's picture is, in this view's coordinates.
     func pictureFrame(of tab: Tab) -> CGRect? {
-        guard let i = tabs.all.firstIndex(where: { $0 === tab }) else { return nil }
+        if order.count != tabs.all.count { regroup() }
+        guard let i = order.firstIndex(where: { $0 === tab }) else { return nil }
         return scroll.convert(layout.picture(i), to: self)
     }
 
@@ -177,7 +238,18 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         new.frame = buttons.new
         done.frame = buttons.done
         count.frame = buttons.count
-        count.text = tabs.all.count == 1 ? "1 Tab" : "\(tabs.all.count) Tabs"
+        count.count = tabs.all.count
+        tidyButton.frame = buttons.tidy
+        // Never over Private's tabs, so they never reach Tidy.
+        tidyButton.isHidden = !TidyButton.shows(tabs: tabs.all.count) || tabs.space != nil
+        if order.count != tabs.all.count { regroup() }
+        if let banner {
+            let width = bounds.width - 2 * GridLayout.margin
+            let height = banner.systemLayoutSizeFitting(CGSize(width: width, height: 0),
+                                                        withHorizontalFittingPriority: .required,
+                                                        verticalFittingPriority: .fittingSizeLevel).height
+            banner.frame = CGRect(x: GridLayout.margin, y: bannerTop, width: width, height: height)
+        }
         scroll.contentSize = CGSize(width: bounds.width, height: layout.contentHeight)
         layoutCards()
     }
@@ -196,7 +268,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         let layout = layout
         let margin = bounds.height
         let wanted = layout.visible(from: scroll.contentOffset.y - margin, height: bounds.height + 2 * margin)
-        let list = tabs.all
+        let list = order
         var keep = Set<ObjectIdentifier>()
         var moves: [(TabCard, CGRect)] = []
         var growing: [TabCard] = []
@@ -214,7 +286,11 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             // Its model is where it's going, so a card already on its way
             // there is left alone, not snapped there by the next pass.
             guard !Self.rests(card, at: frame) else { continue }
-            let move = was.map { GridLayout.move(from: $0[key], to: i) }
+            // Along its row, or to another, over the others so none passes
+            // under another: by where it is, since a group can move it anywhere.
+            let move: GridLayout.Move? = was.map { was in
+                was[key] == nil ? .arrive : abs(card.center.y - frame.midY) > 1 ? .hop : .slide
+            }
             if made || move == nil {
                 UIView.performWithoutAnimation { Self.place(card, at: frame) }
                 if move == .arrive {
@@ -227,6 +303,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
                 moves.append((card, frame))
             }
         }
+        layoutHeaders(animated: was != nil)
         for card in rising { scroll.bringSubviewToFront(card) }
         // Under those making room for them.
         for card in growing { scroll.sendSubviewToBack(card) }
@@ -351,7 +428,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         if let card, !isLoose(card) { loose.append(card) }
         UISelectionFeedbackGenerator().selectionChanged()
         let begin = Signpost.log.beginAnimationInterval("card.close")
-        let before = tabs.all
+        let before = order
         tabs.close(tab)
         reflow(from: before)
         guard let card else { return Signpost.log.endInterval("card.close", begin) }
@@ -394,7 +471,9 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// scrolled to scrolls back in the same spring, and what's on its way
     /// out stays where it is on screen.
     private func reflow(from before: [Tab]) {
-        count.text = tabs.all.count == 1 ? "1 Tab" : "\(tabs.all.count) Tabs"
+        regroup()
+        showStale()
+        count.count = tabs.all.count
         let layout = layout
         let old = scroll.contentOffset.y
         let offset = layout.offset(keeping: old, viewport: bounds.height)
@@ -433,11 +512,153 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             let name = entry.title.isEmpty ? (Bar.host(of: URL(string: entry.url)) ?? entry.url) : entry.title
             return UIAction(title: name) { [weak self] _ in
                 guard let self else { return }
-                let before = tabs.all
+                let before = order
                 tabs.reopen(at: position)
                 reflow(from: before)
             }
         }
         return [UIMenu(title: "Recently Closed", options: .displayInline, children: items)]
+    }
+
+    // MARK: - groups
+
+    /// Each group's name over its cards: in place with them, fading in when
+    /// a group arrives and out when it goes.
+    private func layoutHeaders(animated: Bool) {
+        let layout = layout
+        var seen = Set<UUID>()
+        for (index, section) in sections.enumerated() {
+            guard let group = section.group, let frame = layout.header(index) else { continue }
+            seen.insert(group.id)
+            let made = headers[group.id] == nil
+            let header = headers[group.id] ?? makeHeader()
+            headers[group.id] = header
+            if made || !headersFresh {
+                header.configuration?.title = group.name
+                header.accessibilityLabel = group.name
+                header.menu = menu(for: group, tabs: section.items)
+            }
+            if made || !animated {
+                UIView.performWithoutAnimation { header.frame = frame }
+            } else if header.frame != frame {
+                UIView.animate(springDuration: 0.34, bounce: 0.18, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
+                    header.frame = frame
+                }
+            }
+            if made, animated {
+                header.alpha = 0
+                UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut]) { header.alpha = 1 }
+            }
+        }
+        headersFresh = true
+        for (id, header) in headers where !seen.contains(id) {
+            headers[id] = nil
+            UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut]) { header.alpha = 0 } completion: { _ in
+                header.removeFromSuperview()
+            }
+        }
+    }
+
+    private func makeHeader() -> UIButton {
+        var config = UIButton.Configuration.plain()
+        config.baseForegroundColor = Palette.UI.ink
+        config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4)
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = UIFontMetrics(forTextStyle: .footnote)
+                .scaledFont(for: .systemFont(ofSize: Ramp.label.size, weight: .semibold), maximumPointSize: 20)
+            return outgoing
+        }
+        let header = UIButton(configuration: config)
+        header.contentHorizontalAlignment = .leading
+        // The menu comes on a long press; a tap does nothing.
+        header.showsMenuAsPrimaryAction = false
+        header.accessibilityTraits.insert(.header)
+        header.accessibilityIdentifier = "tabs.group"
+        scroll.addSubview(header)
+        return header
+    }
+
+    /// Rename, Add Similar Tabs, Ungroup.
+    private func menu(for group: Session.Group, tabs members: [Tab]) -> UIMenu {
+        UIMenu(children: [
+            UIAction(title: "Rename", image: UIImage(systemName: "pencil")) { [weak self] _ in self?.rename(group) },
+            UIAction(title: "Add Similar Tabs", image: UIImage(systemName: "plus.rectangle.on.rectangle")) { [weak self] _ in
+                self?.onSimilar(group, members)
+            },
+            UIAction(title: "Ungroup", image: UIImage(systemName: "rectangle.3.group")) { [weak self] _ in
+                guard let self else { return }
+                var grouping = tabs.grouping
+                grouping.membership = grouping.membership.filter { $0.value != group.id }
+                tabs.regroup(grouping)
+            },
+        ])
+    }
+
+    private func rename(_ group: Session.Group) {
+        let alert = UIAlertController(title: "Rename Group", message: nil, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.text = group.name
+            field.clearButtonMode = .whileEditing
+        }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Rename", style: .default) { [weak self, weak alert] _ in
+            guard let name = alert?.textFields?.first?.text else { return }
+            self?.tabs.rename(group.id, to: name)
+        })
+        var top = window?.rootViewController
+        while let next = top?.presentedViewController { top = next }
+        top?.present(alert, animated: true)
+    }
+
+    // MARK: - stale tabs
+
+    /// The banner, when some tabs have gone untouched long enough: made
+    /// again only when what it says changes. Never over Private's tabs.
+    private func showStale() {
+        let found = tabs.space == nil ? StaleTabs.find(tabs.all.map(\.staleEntry), current: tabs.current.id) : nil
+        let line = found.flatMap(StaleTabs.line)
+        guard line != bannerLine else { return }
+        bannerLine = line
+        banner?.removeFromSuperview()
+        banner = nil
+        guard let line, let found else { return setNeedsLayout() }
+        let ids = Set(found.all)
+        let banner = StaleBanner.hosted(line: line, onReview: { [weak self] in
+            guard let self else { return }
+            let infos = tabs.all.filter { ids.contains($0.id) }.compactMap(\.info)
+            TidySheets.showStale(infos, line: line) { [weak self] chosen in self?.closeStale(Set(chosen)) }
+        }, onClose: { [weak self] in self?.closeStale(ids) })
+        scroll.addSubview(banner)
+        self.banner = banner
+        setNeedsLayout()
+    }
+
+    /// Closed together, each to Recently Closed, with one Undo for them all.
+    private func closeStale(_ ids: Set<UUID>) {
+        let gone = tabs.all.filter { ids.contains($0.id) && $0 !== tabs.current }
+        guard !gone.isEmpty else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        let before = order
+        let undo = tabs.close(all: gone)
+        reflow(from: before)
+        let n = gone.count
+        tabs.offer("Closed \(n) \(n == 1 ? "tab" : "tabs")", Toaster.Offer(title: "Undo") { [weak self] in
+            guard let self else { return }
+            let before = order
+            undo()
+            reflow(from: before)
+        })
+    }
+}
+
+extension Tab {
+    /// What Tidy is given: pages only.
+    var info: TabInfo? { url.map { TabInfo(id: id, title: title, url: $0) } }
+
+    /// What the stale rule reads, without the web view's state, which it
+    /// doesn't need and which is slow to take.
+    var staleEntry: Session.Entry {
+        Session.Entry(id: id, url: url?.absoluteString ?? "", title: title, viewed: viewed)
     }
 }

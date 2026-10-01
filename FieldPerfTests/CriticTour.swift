@@ -674,6 +674,9 @@ final class CriticServer: @unchecked Sendable {
             "<p>Jumping to the App Store in a moment.</p><script>"
             + "setTimeout(function(){location.href='https://apps.apple.com/us/app/id284882215'},1500);"
             + "setTimeout(function(){location.href='itms-apps://apps.apple.com/app/id284882215'},4500)</script>").utf8))
+        case "/ads": ("200 OK", "text/html; charset=utf-8", Data(CriticTour.small(
+            "<p id=ad>Waiting for the ad script</p><script src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'"
+            + " onload=\"ad.textContent='Ad script loaded'\" onerror=\"ad.textContent='Ad script blocked'\"></script>").utf8))
         case let path where path.hasPrefix("/figure/"):
             ("200 OK", "image/svg+xml", Data(Article.svg(Int(path.dropFirst(8).prefix { $0.isNumber }) ?? 0).utf8))
         default: ("404 Not Found", "text/plain", Data("Not found".utf8))

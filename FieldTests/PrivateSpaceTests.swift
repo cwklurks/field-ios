@@ -66,6 +66,22 @@ import WebKit
         #expect(!seen.contains("everyday_\(token)"))
     }
 
+    /// Through the real Tab: a private tab's web view gets the session's
+    /// store, Private's delegate and its hardening.
+    @Test func aPrivateTabUsesTheSpacesStore() async throws {
+        defer { clean() }
+        let server = try await Self.server()
+        defer { server.stop() }
+        let space = PrivateSpace(temporary: temporary)
+        let tab = space.open().current
+        tab.load(server.url.appending(path: "set").appending(queryItems: [.init(name: "tab", value: nil)]))
+        tab.build()
+        let web = try #require(tab.web)
+        #expect(web.configuration.websiteDataStore === space.dataStore)
+        #expect(web.uiDelegate is PrivateUIDelegate)
+        #expect(!web.configuration.allowsPictureInPictureMediaPlayback)
+    }
+
     /// Wiped, the store it had holds no record of anything.
     @Test func wipeLeavesNoRecords() async throws {
         defer { clean() }

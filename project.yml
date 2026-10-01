@@ -49,6 +49,7 @@ targets:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "To open pages on your own network, like a router or a printer."
         INFOPLIST_KEY_NSCameraUsageDescription: "Only when a page you open asks to use the camera."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Only when a page you open asks to use the microphone."
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "Only to unlock Private, so nobody else can open it."
         # The web view's own "Add to Photos" on a long-pressed image; without it iOS ends the app.
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Only to save a picture you chose to keep."
 

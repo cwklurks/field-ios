@@ -60,6 +60,10 @@ final class BarContent: UIView {
     private var canGoBack = false
     /// A blank tab: the placeholder, muted.
     private(set) var blank = true
+    /// A private tab: the Mac's mark before the host, quiet.
+    var privately = false { didSet { if privately != oldValue { say(shown, again: true) } } }
+    /// The last URL `say` was given.
+    private var shown: URL?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -126,11 +130,19 @@ final class BarContent: UIView {
     /// The address for `url`: its host, or for a page with none (a `data:`
     /// page) its scheme, as the Mac says; the placeholder only for a blank
     /// tab. Go says the new host at once, before the tab has caught up.
-    func say(_ url: URL?) {
+    func say(_ url: URL?, again: Bool = false) {
         let text = url.map { Bar.host(of: $0) ?? $0.scheme.map { $0 + ":" } ?? "" } ?? Bar.placeholder
         blank = url == nil
-        guard label.text != text else { return paint() }
-        label.text = text
+        shown = url
+        guard again || address.accessibilityLabel != text else { return paint() }
+        if privately, let image = PrivateMark.image(pointSize: label.font.pointSize * 0.8, weight: .medium) {
+            let mark = NSTextAttachment(image: image.withTintColor(Palette.UI.muted, renderingMode: .alwaysOriginal))
+            let line = NSMutableAttributedString(attachment: mark)
+            line.append(NSAttributedString(string: "  " + text, attributes: [.font: label.font as Any]))
+            label.attributedText = line
+        } else {
+            label.text = text
+        }
         address.accessibilityLabel = text
         paint()
         setNeedsLayout()

@@ -114,4 +114,39 @@ struct GridLayoutTests {
             }
         }
     }
+
+    // MARK: - groups (Tidy)
+
+    /// A named group has its header above its cards; the loose tabs follow
+    /// with none, and every row starts on the left again.
+    @Test func groupsAreSectionsWithHeaders() {
+        let grouped = GridLayout(width: 402, sections: [.init(count: 3, named: true), .init(count: 2, named: false)],
+                                 top: 74, bottom: 120)
+        #expect(grouped.count == 5)
+        #expect(grouped.header(0) == CGRect(x: grouped.picture(0).minX, y: 74, width: 402 - 2 * grouped.picture(0).minX,
+                                            height: GridLayout.header))
+        #expect(grouped.header(1) == nil)
+        #expect(grouped.picture(0).minY == 74 + GridLayout.header)
+        #expect(grouped.picture(2).minY == grouped.card(0).maxY + GridLayout.rowGap)
+        // The loose tabs start a row of their own, on the left.
+        #expect(grouped.picture(3).minX == grouped.picture(0).minX)
+        #expect(grouped.picture(3).minY == grouped.card(2).maxY + GridLayout.rowGap)
+        #expect(grouped.contentHeight == grouped.card(4).maxY + 120)
+    }
+
+    @Test func aSectionsCardsAreFoundWhenVisible() {
+        let grouped = GridLayout(width: 402, sections: [.init(count: 5, named: true), .init(count: 20, named: true)],
+                                 top: 74, bottom: 120)
+        let range = grouped.visible(from: grouped.picture(9).minY, height: 10)
+        #expect(range.contains(9))
+        #expect(!range.contains(0))
+        #expect(grouped.visible(from: 0, height: 874).contains(0))
+    }
+
+    /// With no groups, the grid is as it was: one section, no header.
+    @Test func noGroupsIsTheOldGrid() {
+        let plain = GridLayout(width: 402, sections: [.init(count: 7, named: false)], top: 74, bottom: 120)
+        #expect(plain == layout)
+        #expect(plain.header(0) == nil)
+    }
 }

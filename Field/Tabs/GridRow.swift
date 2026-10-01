@@ -29,9 +29,14 @@ struct GridRow {
         CGRect(x: width - Self.margin - Self.doneWidth, y: top, width: Self.doneWidth, height: Self.button)
     }
 
+    /// Tidy's, just before Done, when there are tabs enough (TidyButton).
+    var tidy: CGRect {
+        CGRect(x: done.minX - Self.button, y: top, width: Self.button, height: Self.button)
+    }
+
     /// As wide as fits between the buttons with the middle kept centred.
     var count: CGRect {
-        let inset = max(new.maxX, width - done.minX)
+        let inset = max(new.maxX, width - tidy.minX)
         return CGRect(x: inset, y: top, width: max(0, width - 2 * inset), height: Self.button)
     }
 }

@@ -13,6 +13,10 @@ import os
     private(set) var web: WKWebView?
     private(set) var url: URL?
     private(set) var title = ""
+    /// The group it's in (Tidy), one of Tabs.groups; nil when it's loose.
+    var group: UUID?
+    /// When it was last on screen (Session.Entry.viewed); nil until Field first shows it.
+    @ObservationIgnored var viewed: Date?
     private(set) var isLoading = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
@@ -43,6 +47,8 @@ import os
     @ObservationIgnored var revealed: () -> Void = {}
     /// On screen. Set by Tabs.
     @ObservationIgnored var visible = false
+    /// Private's, for a private tab; nil for an everyday one.
+    @ObservationIgnored weak var space: PrivateSpace?
     /// When it was last on screen, for the sleep policy.
     @ObservationIgnored var seen = Date.now
     /// The interaction state to come back to, while asleep.
@@ -72,6 +78,8 @@ import os
             url = URL(string: entry.url)
             title = entry.title
             saved = entry.interactionState
+            group = entry.group
+            viewed = entry.viewed
         }
     }
 
@@ -88,7 +96,8 @@ import os
     /// What session.json keeps of it.
     var entry: Session.Entry {
         let state = (web?.interactionState as? Data) ?? saved
-        return Session.Entry(id: id, url: url?.absoluteString ?? "", title: title, interactionState: state)
+        return Session.Entry(id: id, url: url?.absoluteString ?? "", title: title, interactionState: state,
+                             group: group, viewed: viewed)
     }
 
     /// Where Field's own scripts run: a world beside the page's, so the page
@@ -114,6 +123,7 @@ import os
         config.userContentController.addUserScript(
             WKUserScript(source: PaintRelay.script, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Tab.world)
         )
+        space?.configure(config)
 
         content = config.userContentController
         let web = WKWebView(frame: .zero, configuration: config)
@@ -151,6 +161,7 @@ import os
             },
         ]
         self.web = web
+        space?.built(web, offer: { [weak self] in self?.offer($0, $1) }, announce: { [weak self] in self?.announce($0) })
         if let pending {
             self.pending = nil
             saved = nil
@@ -218,6 +229,8 @@ import os
     func show() {
         visible = true
         seen = .now
+        // The stale rule's clock.
+        viewed = .now
         if let action = revival.shown() { revive(action) }
     }
 
@@ -425,10 +438,14 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
         }
         switch Opening.decide(action.request.url, newWindow: action.targetFrame == nil, byLink: byLink) {
         case .allow:
-            if action.targetFrame?.isMainFrame == true, let content {
-                ContentBlocking.shared.apply(to: content, host: action.request.url?.host())
+            guard action.targetFrame?.isMainFrame == true, let content else { return decisionHandler(.allow, preferences) }
+            // A restored tab's first page can come before the lists are
+            // looked up: it waits for them, up to 100 ms, so it's blocked too.
+            let host = action.request.url?.host()
+            ContentBlocking.shared.whenLookedUp {
+                ContentBlocking.shared.apply(to: content, host: host)
+                decisionHandler(.allow, preferences)
             }
-            decisionHandler(.allow, preferences)
         case .sameTab:
             decisionHandler(.cancel, preferences)
             open(action.request)
@@ -481,7 +498,7 @@ extension Tab: WKNavigationDelegate, WKUIDelegate {
 
     /// A link to another app, tapped: it goes once you say so.
     private func askToLeave(for url: URL) {
-        offer(Tab.leaving(to: url), Toaster.Offer(title: "Open") { [weak self] in
+        offer(space == nil ? Tab.leaving(to: url) : PrivateWeb.leaving(to: url), Toaster.Offer(title: "Open") { [weak self] in
             UIApplication.shared.open(url) { opened in
                 if !opened { self?.announce("No app here opens that link.") }
             }

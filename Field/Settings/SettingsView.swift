@@ -9,6 +9,8 @@ struct SettingsView: View {
     @AppStorage("look") private var look: Look = .system
     @AppStorage("engine") private var engine: Engine = .standard
     @AppStorage("engine.custom") private var custom = ""
+    /// Read by the stale-tabs rule (StaleTabs.days).
+    @AppStorage("staleDays") private var staleDays = Stale.defaultDays
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -41,6 +43,10 @@ struct SettingsView: View {
                 section("Search engine") {
                     Engines(engine: $engine, custom: $custom)
                 }
+                section("Tabs untouched for") {
+                    Segmented(options: [(7, "1 week"), (14, "2 weeks"), (30, "1 month")], selection: $staleDays)
+                }
+                section("Private") { PrivateSettingsSection() }
                 section("About") { About() }
             }
             .foregroundStyle(Palette.ink)

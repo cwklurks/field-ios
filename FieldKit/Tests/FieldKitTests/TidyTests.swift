@@ -76,6 +76,40 @@ struct TidyTests {
         #expect(found[0].ids == [Self.id(1), Self.id(2), Self.id(3)])
     }
 
+    /// On a domain many products share, the product is the host (Gmail is
+    /// not Google Flights) and on Reddit the community, so neither is lumped
+    /// in with the rest of the domain.
+    @Test func aSharedDomainGroupsByProduct() {
+        let tabs = [
+            tab(1, "Inbox", "https://mail.google.com/mail/u/0/#inbox"),
+            tab(2, "Draft", "https://mail.google.com/mail/u/0/#drafts"),
+            tab(3, "Flights to Lisbon", "https://www.google.com/travel/flights?q=lisbon"),
+            tab(4, "Flights to Porto", "https://www.google.com/travel/flights?q=porto"),
+            tab(5, "X1 Carbon keyboard", "https://www.reddit.com/r/thinkpad/comments/1"),
+            tab(6, "T480 battery", "https://www.reddit.com/r/thinkpad/comments/2"),
+            tab(7, "My sourdough", "https://www.reddit.com/r/Breadit/comments/3"),
+        ]
+        let found = groups(tabs)
+        #expect(found.contains { $0.ids == [Self.id(1), Self.id(2)] && $0.name == "Gmail" })
+        #expect(found.contains { $0.ids == [Self.id(3), Self.id(4)] })
+        #expect(found.contains { $0.ids == [Self.id(5), Self.id(6)] && $0.name == "r/thinkpad" })
+        #expect(!found.contains { $0.ids.contains(Self.id(7)) && $0.ids.contains(Self.id(5)) })
+        #expect(!found.contains { $0.ids.contains(Self.id(1)) && $0.ids.contains(Self.id(3)) })
+    }
+
+    @Test func similarUsesTheProductOnASharedDomain() {
+        let group = [
+            tab(1, "X1 Carbon keyboard", "https://www.reddit.com/r/thinkpad/comments/1"),
+            tab(2, "T480 battery", "https://www.reddit.com/r/thinkpad/comments/2"),
+        ]
+        let loose = [
+            tab(3, "Dock", "https://www.reddit.com/r/thinkpad/comments/4"),
+            tab(4, "Crumb shot", "https://www.reddit.com/r/Breadit/comments/5"),
+        ]
+        let found = Tidy.similar(to: group, among: loose, embed: { _ in nil }, site: Self.site)
+        #expect(found == [Self.id(3)])
+    }
+
     @Test func oneTabOnASiteIsNotASiteGroup() {
         let tabs = [
             tab(1, "GitHub code", "https://github.com/a"),

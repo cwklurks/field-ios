@@ -54,7 +54,15 @@ struct TabsTests {
         let entries = [entry("https://a.com/"), entry("https://b.com/")]
         let shape = Session.Shape(tabs: entries, active: 1)
         let restored = tabs(shape)
-        #expect(restored.shape == shape)
+        // But for when the tab on screen was last seen: now.
+        #expect(restored.shape.tabs[1].viewed != nil)
+        var seen = restored.shape
+        seen.tabs = seen.tabs.map { entry in
+            var unseen = entry
+            unseen.viewed = nil
+            return unseen
+        }
+        #expect(seen == shape)
     }
 
     @Test func aNewTabGoesAtTheEndAndIsCurrent() {
@@ -72,6 +80,49 @@ struct TabsTests {
         t.openBeside(URL(string: "https://popup.example/")!)
         #expect(urls(t) == ["https://a.com/", "https://popup.example/", "https://b.com/"])
         #expect(t.current.url?.absoluteString == "https://popup.example/")
+    }
+
+    /// Groups come back from the session, and go back into it, with each
+    /// tab's group and when it was last seen.
+    @Test func groupsRoundTripThroughTheSession() {
+        let group = Session.Group(name: "Trip")
+        var first = entry("https://a.com/")
+        first.group = group.id
+        first.viewed = Date(timeIntervalSince1970: 1_000)
+        let t = tabs(Session.Shape(tabs: [first, entry("https://b.com/")], active: 1, groups: [group]))
+        #expect(t.groups == [group])
+        #expect(t.all[0].group == group.id)
+        #expect(t.shape.tabs[0].viewed == Date(timeIntervalSince1970: 1_000))
+        #expect(t.shape.groups == [group])
+        // Shown, a tab's clock starts again.
+        #expect(t.shape.tabs[1].viewed != nil)
+    }
+
+    /// Tidy's Apply and Undo: the grouping as a whole, and a group left with
+    /// no tabs goes.
+    @Test func regroupSetsEveryTabsGroup() {
+        let t = tabs(Session.Shape(tabs: [entry("https://a.com/"), entry("https://b.com/")], active: 0))
+        let trip = Session.Group(name: "Trip")
+        t.regroup(Session.Grouping(groups: [trip, Session.Group(name: "Empty")], membership: [t.all[1].id: trip.id]))
+        #expect(t.groups == [trip])
+        #expect(t.all.map(\.group) == [nil, trip.id])
+        t.regroup(Session.Grouping())
+        #expect(t.groups.isEmpty)
+        #expect(t.all.allSatisfy { $0.group == nil })
+    }
+
+    /// Stale tabs closed together come back together, however many: more
+    /// than Recently Closed holds, in their places, the one on screen kept.
+    @Test func aBulkCloseUndoesWhole() {
+        let many = (0..<30).map { entry("https://\($0).com/") }
+        let t = tabs(Session.Shape(tabs: many + [entry("https://keep.com/")], active: 30))
+        let before = urls(t)
+        let undo = t.close(all: Array(t.all.prefix(30)))
+        #expect(urls(t) == ["https://keep.com/"])
+        undo()
+        #expect(urls(t) == before)
+        #expect(t.current.url?.absoluteString == "https://keep.com/")
+        #expect(t.closed.items.isEmpty)
     }
 
     /// As in Safari: closing the one you're on shows the next, or the one

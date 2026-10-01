@@ -115,6 +115,12 @@ import UIKit
             return
         }
         if window == nil { prepare() }
+        // The keyboard is drawn over every window the app has, the shade's
+        // too, and the switcher's snapshot would have it, suggestions and
+        // all: it goes now, without its slide.
+        UIView.performWithoutAnimation {
+            window?.windowScene?.windows.forEach { $0.endEditing(true) }
+        }
         window?.show(shade)
     }
 

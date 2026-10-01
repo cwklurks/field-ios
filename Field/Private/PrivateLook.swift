@@ -81,6 +81,8 @@ final class PrivateSwitch: UIControl {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        // Not laid out yet: inset, a zero rect is a null one, and NaN frames.
+        guard bounds.width > 4, bounds.height > 4 else { return }
         let box = bounds.insetBy(dx: 0, dy: max(0, (bounds.height - 36) / 2))
         track.frame = box
         let inner = box.insetBy(dx: 2, dy: 2)

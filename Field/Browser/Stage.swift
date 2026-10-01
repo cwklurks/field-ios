@@ -8,26 +8,118 @@ import os
 /// rebuilt by SwiftUI. Its scrolling drives the bar's shrink straight from
 /// UIKit. Takes PageView's place once the browser has tabs.
 struct StageView: UIViewRepresentable {
-    let tabs: Tabs
-    let bar: BarState
+    let browser: Browser
     /// The grid's Saved button.
     var openSaved: () -> Void = {}
     /// The grid's Settings button.
     let openSettings: () -> Void
 
-    func makeUIView(context: Context) -> Stage {
-        let stage = Stage(tabs: tabs, bar: bar, scroller: Scroller(bar: bar))
+    /// Your tabs' stage, and Private's while there's a session.
+    final class Coordinator {
+        var everyday: Stage?
+        var side: PrivateSide?
+        var privateStage: Stage? { side?.stage as? Stage }
+        /// A finger is moving the strip: nothing else slides it meanwhile.
+        var dragging = false
+        /// How far a drag that can't move the strip has gone.
+        var asked: CGFloat = 0
+        /// The side the bar was last shown or hidden for.
+        var barFor: Bool?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    /// Both stages side by side, Private to the right (PrivateStrip).
+    func makeUIView(context: Context) -> PrivateStrip {
+        let stage = makeStage(for: browser.everyday)
+        context.coordinator.everyday = stage
+        let strip = PrivateStrip(everyday: stage)
+        // The switch's lift and the grid row's tone ride the same spring.
+        strip.alongside = { [weak coordinator = context.coordinator] p in
+            coordinator?.everyday?.privateProgress(p)
+            coordinator?.privateStage?.privateProgress(p)
+            // VoiceOver reads the side that's on screen, not the one off it.
+            coordinator?.everyday?.accessibilityElementsHidden = p > 0.5
+            coordinator?.side?.accessibilityElementsHidden = p < 0.5
+        }
+        // A drag let go on the other side is the same as the switch.
+        strip.landed = { [browser] inside in
+            guard inside != browser.privately else { return }
+            inside ? browser.enterPrivate() : browser.leavePrivate()
+        }
+        connect(stage, to: strip, context.coordinator)
+        return strip
+    }
+
+    /// Reads the current tab and its web view, and Private's session, so
+    /// SwiftUI calls again when any of them changes.
+    func updateUIView(_ strip: PrivateStrip, context: Context) {
+        let c = context.coordinator
+        _ = browser.tabs.current.web
+        if let tabs = browser.privateSpace.tabs, c.privateStage.map({ $0.tabs !== tabs }) ?? true {
+            let stage = makeStage(for: tabs)
+            connect(stage, to: strip, c)
+            let side = PrivateSide(stage: stage)
+            c.side = side
+            strip.hold(side)
+        } else if browser.privateSpace.tabs == nil, !browser.privately {
+            strip.release()
+            c.side = nil
+        }
+        c.side?.welcomeShown = browser.privately && browser.tab.url == nil && !browser.tabs.gridShown
+        let inside = browser.privately
+        if !c.dragging, (strip.progress > 0.5) != inside { strip.slide(toPrivate: inside) }
+        // The bar is the one surface over both sides: it shows over a page
+        // and goes over a grid, for the side it's going to, as it slides.
+        if c.barFor != inside, let bar = browser.tabs.chrome {
+            if c.barFor != nil {
+                let shown: CGFloat = browser.tabs.gridShown ? 0 : 1
+                UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut, .beginFromCurrentState, .allowUserInteraction]) {
+                    bar.alpha = shown
+                }
+            }
+            c.barFor = inside
+        }
+        c.everyday?.sync()
+        c.privateStage?.sync()
+    }
+
+    private func makeStage(for tabs: Tabs) -> Stage {
+        let stage = Stage(tabs: tabs, bar: browser.bar, scroller: Scroller(bar: browser.bar))
         stage.openSettings = openSettings
         stage.openSaved = openSaved
+        stage.enterPrivate = { [browser] in browser.enterPrivate() }
+        stage.leavePrivate = { [browser] in browser.leavePrivate() }
         tabs.stage = stage
         return stage
     }
 
-    /// Reads the current tab and its web view, so SwiftUI calls again when
-    /// either changes.
-    func updateUIView(_ stage: Stage, context: Context) {
-        _ = tabs.current.web
-        stage.sync()
+    /// The grid row's drag moves the strip. With no session to drag into,
+    /// or one that's locked, which must come in under its lock screen from
+    /// the first frame, a flick or a long drag left goes in as a tap would.
+    private func connect(_ stage: Stage, to strip: PrivateStrip, _ c: Coordinator) {
+        let draggable = { [browser] in
+            browser.privately || (browser.privateSpace.tabs != nil && browser.gate.lock.state == .open)
+        }
+        stage.trackPrivate = { [weak strip, weak c] dx in
+            guard draggable() else {
+                c?.asked = dx
+                return
+            }
+            c?.dragging = true
+            strip?.track(dx)
+        }
+        stage.releasePrivate = { [weak strip, weak c, browser] velocity in
+            c?.dragging = false
+            guard draggable() else {
+                let dx = c?.asked ?? 0
+                c?.asked = 0
+                let far = (strip?.bounds.width ?? 0) / 3
+                if velocity < -300 || dx < -far { browser.enterPrivate() }
+                return
+            }
+            strip?.release(velocity: velocity)
+        }
     }
 }
 
@@ -47,11 +139,33 @@ struct StageView: UIViewRepresentable {
 ///
 /// Nothing is built while anything moves: a tab wakes when its motion ends.
 final class Stage: UIView {
-    private let tabs: Tabs
+    let tabs: Tabs
     private let bar: BarState
     let scroller: Scroller
     var openSettings: () -> Void = {}
     var openSaved: () -> Void = {}
+    var enterPrivate: () -> Void = {}
+    var leavePrivate: () -> Void = {}
+    /// The grid row's sideways drag, for the strip.
+    var trackPrivate: (CGFloat) -> Void = { _ in }
+    var releasePrivate: (CGFloat) -> Void = { _ in }
+
+    /// Tidy's groups changed: the grid's cards move to their new places.
+    func regrouped() { grid?.regrouped() }
+
+    /// Apply, then Undo from the toast.
+    private static func flow(for tabs: Tabs) -> TidyFlow {
+        TidyFlow(grouping: { tabs.grouping }, regroup: { tabs.regroup($0) }, toast: { tabs.offer($0, $1) })
+    }
+
+    /// 0 on your tabs, 1 in Private: the grid's switch follows it.
+    func privateProgress(_ p: CGFloat) {
+        privateAt = p
+        grid?.privateProgress(p)
+    }
+
+    /// The strip's last progress, for a grid made after it moved.
+    private var privateAt: CGFloat = 0
 
     /// Holds the web view and its cover; slides in the carousel.
     private let page = UIView()
@@ -337,6 +451,8 @@ final class Stage: UIView {
     /// its place once it has gone; the ring flies in with the page. Caught
     /// mid-close, the same copy turns around from where it is.
     func openGrid() {
+        // Tidy's model loads while the grid opens, so its tap waits for nothing.
+        if tabs.space == nil { TidyEngine.shared.prewarm() }
         let tab = tabs.current
         let turning = turnAround(for: tab)
         if turning == nil { finishMoving() }
@@ -619,6 +735,20 @@ final class Stage: UIView {
         grid.onNew = { [weak self] in self?.tabs.newTabFromGrid() }
         grid.onSettings = { [weak self] in self?.openSettings() }
         grid.onSaved = { [weak self] in self?.openSaved() }
+        // Private's tabs never get here: the grid shows no Tidy for them.
+        grid.onTidy = { [tabs] in
+            guard tabs.space == nil else { return }
+            TidySheets.show(tabs.all.compactMap(\.info), flow: Stage.flow(for: tabs))
+        }
+        grid.onSimilar = { [tabs] group, members in
+            guard tabs.space == nil else { return }
+            let loose = tabs.all.filter { $0.group == nil }.compactMap(\.info)
+            TidySheets.showSimilar(to: group, members: members.compactMap(\.info), among: loose, flow: Stage.flow(for: tabs))
+        }
+        grid.onPrivate = { [weak self] entering in entering ? self?.enterPrivate() : self?.leavePrivate() }
+        grid.trackPrivate = { [weak self] in self?.trackPrivate($0) }
+        grid.releasePrivate = { [weak self] in self?.releasePrivate($0) }
+        grid.privateProgress(privateAt)
         addSubview(grid)
         self.grid = grid
         return grid
