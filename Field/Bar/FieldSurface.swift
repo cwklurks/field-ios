@@ -142,6 +142,8 @@ final class FieldSurface: UIViewController {
         view.accessibilityElements = [rider, scrim]
 
         scrim.cancel = { [weak self] in self?.cancel() }
+        // Private's welcome link, under the dim on a new private tab: one tap opens it.
+        scrim.passes = { PrivateSide.showing?.linkContains($0) ?? false }
         scrim.delegate = self
         scrim.cover = { [weak self] in
             guard let self else { return .zero }
@@ -258,7 +260,7 @@ final class FieldSurface: UIViewController {
             }
         }
         surface.bar.privately = browser.privately
-        surface.bar.show(url: goingTo ?? page.url, loading: page.isLoading, canGoBack: page.canGoBack, canGoForward: page.canGoForward)
+        surface.bar.show(url: goingTo ?? browser.tabs.arriving ?? page.url, loading: page.isLoading, canGoBack: page.canGoBack, canGoForward: page.canGoForward)
         if flow.phase == .bar { place() }
         // Another tab is read afresh, at once, even when neither has a page
         // yet: its picture is under the bar until its page is.
@@ -844,10 +846,13 @@ final class FieldSurface: UIViewController {
         SurfaceMotion.animate(.glide(velocity: spring)) { self.place() } completion: { _ in done() }
     }
 
-    /// The glass takes the page's tone, but in Private it stays Private's dark.
+    /// The glass takes the page's tone, but in Private it's Private's dark,
+    /// said outright: left to the app's look, the glass reads what's under
+    /// it, the light grid sliding away, and rises light.
     private func paintTone() {
+        guard !browser.privately else { return surface.paint(.dark) }
         let bar = flow.phase != .field
-        let tone: UIUserInterfaceStyle = switch (bar && look == .glass && !browser.privately) ? pageTone : nil {
+        let tone: UIUserInterfaceStyle = switch (bar && look == .glass) ? pageTone : nil {
         case .dark?: .dark
         case .light?: .light
         default: .unspecified
@@ -1006,6 +1011,8 @@ final class PassThrough: UIView {
 /// follow.
 final class Scrim: UIScrollView {
     var cancel: () -> Void = {}
+    /// A point on screen the dim lets through to what's under it.
+    var passes: (CGPoint) -> Bool = { _ in false }
     /// The part of it VoiceOver and the tests treat as the way back.
     var cover: () -> CGRect = { .zero }
 
@@ -1028,6 +1035,11 @@ final class Scrim: UIScrollView {
     required init?(coder: NSCoder) { fatalError() }
 
     @objc private func tapped() { cancel() }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        guard !passes(convert(point, to: nil)) else { return false }
+        return super.point(inside: point, with: event)
+    }
 
     override func accessibilityActivate() -> Bool {
         cancel()

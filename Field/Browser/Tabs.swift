@@ -13,6 +13,12 @@ import os
 @MainActor @Observable final class Tabs {
     private(set) var all: [Tab]
     private(set) var current: Tab
+    /// Where a tab opened beside this one is going, while it slides in:
+    /// the bar says it at once, as Go does, not the old tab's host.
+    private(set) var arriving: URL?
+    /// What the grid keeps just over its row (the stale banner), for a toast
+    /// to sit above.
+    var overRow: CGFloat = 0
     /// Tidy's groups, in the grid's order; only ones some tab is in.
     private(set) var groups: [Session.Group] = []
     /// The tab grid is up, or on its way up.
@@ -189,6 +195,7 @@ import os
     /// Puts `tab` on screen, as far as the list goes; the Stage places its
     /// web view, waking it if it sleeps.
     func select(_ tab: Tab) {
+        arriving = nil
         guard tab !== current else { return }
         current.visible = false
         current = tab
@@ -216,6 +223,7 @@ import os
         tab.load(url)
         all.insert(tab, at: index + 1)
         changed()
+        arriving = url
         switchTab(by: 1)
     }
 

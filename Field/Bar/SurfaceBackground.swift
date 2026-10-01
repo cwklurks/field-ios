@@ -94,11 +94,21 @@ final class SurfaceBackground: UIView {
         let traits = traits()
         guard traits.userInterfaceStyle != painted else { return }
         painted = traits.userInterfaceStyle
-        if let glass {
+        if let old = glass {
             let effect = UIGlassEffect(style: .regular)
             effect.tintColor = Palette.UI.ground.resolvedColor(with: traits).withAlphaComponent(0.6)
+            // A new view in the new tone, not the old one changed: glass
+            // changed in place keeps its old look for a few frames, and a
+            // field opening into Private rose light (polish-6 P6-01).
+            let glass = UIVisualEffectView(effect: nil)
+            glass.frame = old.frame
+            glass.autoresizingMask = old.autoresizingMask
+            glass.cornerConfiguration = .corners(radius: .fixed(radius))
             glass.overrideUserInterfaceStyle = tone
             glass.effect = effect
+            insertSubview(glass, aboveSubview: old)
+            old.removeFromSuperview()
+            self.glass = glass
             frost?.effect = traits.userInterfaceStyle == .dark ? UIBlurEffect(style: .systemUltraThinMaterialDark) : nil
         }
         edge?.layer.borderColor = Palette.UI.ink.resolvedColor(with: traits).withAlphaComponent(0.1).cgColor

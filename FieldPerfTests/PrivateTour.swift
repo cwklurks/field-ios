@@ -92,6 +92,19 @@ final class PrivateTour: XCTestCase {
         try await unlock(app)
     }
 
+    /// 1c: a new private tab: one tap on "What Private can't do", under the
+    /// field's dim, opens the list.
+    @MainActor func testWelcomeLink() async throws {
+        let app = launch()
+        _ = app.element("page").waitForExistence(timeout: 10)
+        try await pause(3)
+        try await toggle(app)
+        try await pause(2.5)
+        app.element("private.limits.open").tap()
+        XCTAssert(app.element("private.limits").waitForExistence(timeout: 3), "one tap didn't open the list")
+        try await pause(2)
+    }
+
     /// 2: in Private with the keyboard up, to the home screen and the app
     /// switcher, then back: the cover, then the lock.
     @MainActor func testSwitcher() async throws {

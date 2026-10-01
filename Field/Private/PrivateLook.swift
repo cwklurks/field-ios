@@ -231,12 +231,20 @@ final class PrivateStrip: UIView {
 /// welcome slides in with the stage, as part of it.
 final class PrivateSide: UIView {
     let stage: UIView
-    private let welcome = UIHostingConfiguration { PrivateWelcome() }.margins(.all, 0).makeContentView()
+    /// "What Private can't do", tapped.
+    var openLimits: () -> Void = { PrivateLimits.present() }
+    private lazy var welcome = UIHostingConfiguration { [weak self] in
+        PrivateWelcome { self?.openLimits() }
+    }.margins(.all, 0).makeContentView()
+
+    /// The side whose welcome is up, if one is.
+    private(set) static weak var showing: PrivateSide?
 
     /// The tab on screen is blank and the grid isn't up.
     var welcomeShown = false {
         didSet {
             guard welcomeShown != oldValue else { return }
+            if welcomeShown { Self.showing = self } else if Self.showing === self { Self.showing = nil }
             UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut, .beginFromCurrentState, .allowUserInteraction]) {
                 self.welcome.alpha = self.welcomeShown ? 1 : 0
             }
@@ -253,6 +261,14 @@ final class PrivateSide: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Whether a point on screen is on the welcome's "What Private can't do",
+    /// its last line: the field's dim lets a tap there through to it.
+    func linkContains(_ point: CGPoint) -> Bool {
+        guard welcomeShown, welcome.alpha > 0.5, let window else { return false }
+        let frame = welcome.convert(welcome.bounds, to: window)
+        return CGRect(x: frame.minX, y: frame.maxY - 44, width: frame.width, height: 44).contains(point)
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()

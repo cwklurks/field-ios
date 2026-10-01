@@ -6,6 +6,14 @@ struct BrowserView: View {
     let browser: Browser
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Over a page, the page's; over Field's own screens, the app's, but
+    /// Private's are always dark, from the frame the slide starts.
+    private var statusTone: ColorScheme? {
+        let own = browser.fieldOpen || browser.tabs.gridShown || browser.tab.failure != nil || browser.tab.url == nil
+        if browser.privately { return own ? .dark : browser.tab.tone ?? .dark }
+        return own ? nil : browser.tab.tone
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             StageView(browser: browser, openSaved: {
@@ -37,7 +45,7 @@ struct BrowserView: View {
 
             // Over the grid too, where Tidy's and the stale tabs' Undo are.
             Toast(toaster: browser.toaster)
-                .padding(.bottom, Bar.height + 14)
+                .padding(.bottom, Bar.height + 14 + (browser.tabs.gridShown ? browser.tabs.overRow : 0))
                 .environment(\.colorScheme, browser.privately ? .dark : colorScheme)
 
             // The bar, which is also the field: one surface on the keyboard.
@@ -50,7 +58,7 @@ struct BrowserView: View {
         }
         .background(Palette.ground)
         .background { if TouchMarks.isOn { TouchMarksInstaller() } }
-        .modifier(StatusTone(tone: browser.fieldOpen || browser.tabs.gridShown || browser.tab.failure != nil ? nil : browser.tab.tone))
+        .modifier(StatusTone(tone: statusTone))
         // Settings is made ahead of the tap (SettingsSheet), but never
         // between keystrokes or under a coasting page.
         .onAppear {
@@ -59,6 +67,10 @@ struct BrowserView: View {
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }
             SavedSheets.prepareSoon(browser.saved) {
+                let scroll = browser.tab.web?.scrollView
+                return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
+            }
+            Capture.prepareSoon {
                 let scroll = browser.tab.web?.scrollView
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }

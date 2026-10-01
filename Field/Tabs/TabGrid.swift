@@ -36,7 +36,10 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     private var headers: [UUID: UIButton] = [:]
     /// The headers' names and menus are the groups' as they are now.
     private var headersFresh = false
-    /// "12 tabs untouched for 2 weeks · Review / Close", over the cards.
+    /// "12 tabs untouched for 2 weeks · Review / Close", just over the row:
+    /// where it's seen as the grid opens, wherever the tab on screen sits,
+    /// next to Tidy. At the top of the cards it was off screen whenever the
+    /// tab on screen was far down, as it usually is.
     private var banner: UIView?
     private var bannerLine: String?
     private lazy var tidyButton = TidyButton.make { [weak self] in self?.onTidy() }
@@ -140,12 +143,14 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         GridLayout(
             width: bounds.width,
             sections: sections.map { GridLayout.Section(count: $0.items.count, named: $0.group != nil) },
-            top: bannerTop + (banner.map { $0.bounds.height + 12 } ?? 0),
-            bottom: Self.rowHeight + safeAreaInsets.bottom + 16
+            top: safeAreaInsets.top + 16,
+            // The last cards scroll clear of the banner.
+            bottom: Self.rowHeight + safeAreaInsets.bottom + 16 + bannerRoom
         )
     }
 
-    private var bannerTop: CGFloat { safeAreaInsets.top + 16 }
+    /// What the banner takes over the row, with its margin.
+    private var bannerRoom: CGFloat { banner.map { $0.bounds.height + 12 } ?? 0 }
 
     /// The sections and the cards' order, from the tabs as they are now.
     private func regroup() {
@@ -166,8 +171,14 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
 
     /// Tidy's Apply, Undo or Ungroup: every card from where it is to its
     /// place in its group, as the same card, and the names fading in and out.
+    /// A group that's new is what was asked for, so the grid scrolls to the
+    /// first, in the same spring, where it would form out of sight above.
     func regrouped() {
-        reflow(from: order)
+        let before = order
+        let known = Set(sections.compactMap(\.group?.id))
+        regroup()
+        let fresh = sections.firstIndex { $0.group.map { !known.contains($0.id) } ?? false }
+        reflow(from: before, showing: fresh)
     }
 
     /// The row along the bottom comes in only once the bar has gone, and goes
@@ -175,14 +186,20 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// goes in the frame the bar takes its place.
     func showRow(_ shown: Bool, now: Bool = false) {
         row.layer.removeAllAnimations()
+        banner?.layer.removeAllAnimations()
         for view in row.subviews { view.alpha = 1 }
+        // The banner comes and goes with the row it sits on.
+        let both = { (alpha: CGFloat) in
+            self.row.alpha = alpha
+            self.banner?.alpha = alpha
+        }
         if now {
-            row.alpha = shown ? 1 : 0
+            both(shown ? 1 : 0)
         } else if shown {
-            row.alpha = 0
-            UIView.animate(withDuration: 0.14, delay: 0.1, options: [.curveEaseOut, .allowUserInteraction]) { self.row.alpha = 1 }
+            both(0)
+            UIView.animate(withDuration: 0.14, delay: 0.1, options: [.curveEaseOut, .allowUserInteraction]) { both(1) }
         } else {
-            UIView.animate(withDuration: 0.08, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) { self.row.alpha = 0 }
+            UIView.animate(withDuration: 0.08, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) { both(0) }
         }
     }
 
@@ -193,6 +210,8 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         row.layer.removeAllAnimations()
         row.alpha = 1
         for view in row.subviews { view.alpha = 0 }
+        banner?.layer.removeAllAnimations()
+        banner?.alpha = 0
     }
 
     /// The strip's progress, inside its animation: the lift moves with it.
@@ -248,8 +267,10 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             let height = banner.systemLayoutSizeFitting(CGSize(width: width, height: 0),
                                                         withHorizontalFittingPriority: .required,
                                                         verticalFittingPriority: .fittingSizeLevel).height
-            banner.frame = CGRect(x: GridLayout.margin, y: bannerTop, width: width, height: height)
+            banner.frame = CGRect(x: GridLayout.margin, y: row.frame.minY - 8 - height, width: width, height: height)
         }
+        // A toast over the grid sits clear of the banner.
+        if tabs.overRow != bannerRoom { tabs.overRow = bannerRoom }
         scroll.contentSize = CGSize(width: bounds.width, height: layout.contentHeight)
         layoutCards()
     }
@@ -263,11 +284,14 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// and each goes from where it is on screen straight to its new place,
     /// one card each, in one spring: along its row, or over the others to
     /// another (see GridLayout.move). One new to the list grows in.
-    func layoutCards(was: [ObjectIdentifier: Int]? = nil) {
+    func layoutCards(was: [ObjectIdentifier: Int]? = nil, scrollingTo target: CGFloat? = nil) {
         guard bounds.width > 0, !reflowing else { return }
         let layout = layout
         let margin = bounds.height
-        let wanted = layout.visible(from: scroll.contentOffset.y - margin, height: bounds.height + 2 * margin)
+        // Those where it's scrolling to as well, made before it gets there.
+        let from = min(scroll.contentOffset.y, target ?? .infinity) - margin
+        let to = max(scroll.contentOffset.y, target ?? -.infinity) + bounds.height + margin
+        let wanted = layout.visible(from: from, height: to - from)
         let list = order
         var keep = Set<ObjectIdentifier>()
         var moves: [(TabCard, CGRect)] = []
@@ -470,13 +494,17 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// on screen to its new place. A grid now shorter than where it was
     /// scrolled to scrolls back in the same spring, and what's on its way
     /// out stays where it is on screen.
-    private func reflow(from before: [Tab]) {
+    private func reflow(from before: [Tab], showing section: Int? = nil) {
         regroup()
         showStale()
+        layoutIfNeeded()
         count.count = tabs.all.count
         let layout = layout
         let old = scroll.contentOffset.y
-        let offset = layout.offset(keeping: old, viewport: bounds.height)
+        var offset = layout.offset(keeping: old, viewport: bounds.height)
+        if let section, let header = layout.header(section) {
+            offset = min(max(0, layout.contentHeight - bounds.height), max(0, header.minY - safeAreaInsets.top - 8))
+        }
         let leaving = loose
         for card in cards.values where !isLoose(card) {
             // Mid-move from the last close, it carries on from where it is.
@@ -487,7 +515,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             card.alpha = CGFloat(now.opacity)
         }
         let was = Dictionary(uniqueKeysWithValues: before.enumerated().map { (ObjectIdentifier($1), $0) })
-        layoutCards(was: was)
+        layoutCards(was: was, scrollingTo: offset)
         let size = CGSize(width: bounds.width, height: layout.contentHeight)
         // A shorter size clamps the offset, at once unless it's animated.
         let resize = {
@@ -500,6 +528,9 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         UIView.animate(springDuration: 0.34, bounce: 0.18, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
             resize()
             for card in leaving { card.center.y += offset - old }
+        } completion: { [weak self] _ in
+            // The cards where it came to rest, if it went further than any were made.
+            self?.layoutCards()
         }
     }
 
@@ -629,7 +660,8 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
             let infos = tabs.all.filter { ids.contains($0.id) }.compactMap(\.info)
             TidySheets.showStale(infos, line: line) { [weak self] chosen in self?.closeStale(Set(chosen)) }
         }, onClose: { [weak self] in self?.closeStale(ids) })
-        scroll.addSubview(banner)
+        banner.alpha = row.alpha
+        insertSubview(banner, belowSubview: row)
         self.banner = banner
         setNeedsLayout()
     }

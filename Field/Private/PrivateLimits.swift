@@ -84,6 +84,9 @@ struct PrivateLimits: View {
 /// A new private tab's page, under the field: the mark, what Private is in
 /// a line, and the way to the rest. Dark, as all of Private is.
 struct PrivateWelcome: View {
+    /// "What Private can't do".
+    var open: @MainActor () -> Void = { PrivateLimits.present() }
+
     var body: some View {
         VStack(spacing: 14) {
             Image(systemName: "eye.slash")
@@ -95,7 +98,7 @@ struct PrivateWelcome: View {
                 .foregroundStyle(Palette.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("What Private can't do", action: PrivateLimits.present)
+            Button("What Private can't do", action: open)
                 .buttonStyle(.plain)
                 .ramp(.row)
                 .fontWeight(.medium)

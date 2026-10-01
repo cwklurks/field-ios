@@ -135,7 +135,9 @@ final class BarContent: UIView {
         blank = url == nil
         shown = url
         guard again || address.accessibilityLabel != text else { return paint() }
-        if privately, let image = PrivateMark.image(pointSize: label.font.pointSize * 0.8, weight: .medium) {
+        // The mark goes with an address. A private new tab is plain to see,
+        // and the placeholder with the mark didn't fit, cut in its middle.
+        if privately, url != nil, let image = PrivateMark.image(pointSize: label.font.pointSize * 0.8, weight: .medium) {
             let mark = NSTextAttachment(image: image.withTintColor(Palette.UI.muted, renderingMode: .alwaysOriginal))
             let line = NSMutableAttributedString(attachment: mark)
             line.append(NSAttributedString(string: "  " + text, attributes: [.font: label.font as Any]))

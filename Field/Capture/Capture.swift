@@ -20,6 +20,11 @@ final class Capture: NSObject {
 
     /// How long a capture runs before it says so.
     static let patience = Duration.milliseconds(300)
+    /// A share sheet has been shown since launch. The first is slow to
+    /// come: iOS finds what can share a file then.
+    private static var shown = false
+    /// One has been made out of sight to get that done early.
+    private static var warmed = false
 
     init(page: @escaping () -> Tab?, announce: @escaping (String) -> Void) {
         self.page = page
@@ -52,6 +57,9 @@ final class Capture: NSObject {
     /// Captures the page, then puts up the share sheet: Save to Files or
     /// Photos, Messages and the rest.
     func capture(_ kind: PageCapture.Kind, from presenter: UIViewController, source: UIView?) {
+        // The first sheet since launch takes a while to come: said at once,
+        // rather than a page that seems to have ignored the tap.
+        if !Self.shown { announce("Capturing the page…") }
         Task {
             do {
                 guard let file = try await make(kind) else { return }
@@ -90,6 +98,7 @@ final class Capture: NSObject {
     /// The share sheet for a capture, which takes the file with it when it
     /// closes: a private page's capture is on disk only while it's shared.
     func share(_ file: URL, from presenter: UIViewController, source: UIView?) {
+        Self.shown = true
         let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = source
         sheet.completionWithItemsHandler = { _, _, _, _ in
@@ -100,6 +109,23 @@ final class Capture: NSObject {
         var top = presenter
         while let above = top.presentedViewController { top = above }
         top.present(sheet, animated: true)
+    }
+
+    /// A share sheet made and laid out out of sight, a few seconds after
+    /// launch when `busy` says nothing else is going on, so the first one
+    /// asked for doesn't wait for iOS to look for what can share.
+    static func prepareSoon(unless busy: @escaping @MainActor () -> Bool, tries: Int = 0) {
+        guard tries < 20 else { return }
+        Timer.scheduledTimer(withTimeInterval: tries == 0 ? 3 : 0.5, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                guard !warmed, !shown else { return }
+                if busy() { return prepareSoon(unless: busy, tries: tries + 1) }
+                let sample = FileManager.default.temporaryDirectory.appendingPathComponent("Field.pdf")
+                let sheet = UIActivityViewController(activityItems: [sample], applicationActivities: nil)
+                sheet.loadViewIfNeeded()
+                warmed = true
+            }
+        }
     }
 
     /// A page that has painted and didn't fail: there's something to capture.

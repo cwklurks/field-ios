@@ -60,6 +60,11 @@ struct StageView: UIViewRepresentable {
             let stage = makeStage(for: tabs)
             connect(stage, to: strip, c)
             let side = PrivateSide(stage: stage)
+            // The list over a closing field, on one tap.
+            side.openLimits = { [browser] in
+                browser.closeField()
+                PrivateLimits.present()
+            }
             c.side = side
             strip.hold(side)
         } else if browser.privateSpace.tabs == nil, !browser.privately {
