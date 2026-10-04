@@ -90,7 +90,7 @@ final class FieldSurface: UIViewController {
     init(browser: Browser) {
         self.browser = browser
         let history = browser.history
-        let omnibox = Omnibox(initial: nil, history: history)
+        let omnibox = Omnibox(initial: nil, history: history, privately: { [weak browser] in browser?.privately ?? true })
         coordinator = AddressField.Coordinator(omnibox: omnibox)
         rows = UIHostingController(rootView: SuggestionRows(omnibox: omnibox, onGo: { _ in }))
         rows.sizingOptions = []
@@ -492,7 +492,7 @@ final class FieldSurface: UIViewController {
     /// finger's is only for its tap, and one left from a long press, or the
     /// last thing typed, may be another tab's, or a wiped Private session's.
     private func draft() {
-        let omnibox = Omnibox(initial: page.url, history: browser.history)
+        let omnibox = Omnibox(initial: page.url, history: browser.history, privately: { [weak browser] in browser?.privately ?? true })
         coordinator.omnibox = omnibox
         coordinator.show(surface.field)
         prepared = true

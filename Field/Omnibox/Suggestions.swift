@@ -18,28 +18,46 @@ struct SuggestionRows: View {
     }
 }
 
-/// What it thinks you mean, the best match last, nearest the field.
+/// What it thinks you mean, the best match last, nearest the field. The
+/// engine's suggestions stand beyond the rest: they arrive late, and up
+/// there their arrival moves no row that was already under a finger. While
+/// a finger is on a row nothing late arrives at all (Omnibox.pressed).
 struct Suggestions: View {
     let omnibox: Omnibox
     let onGo: (URL) -> Void
 
+    /// Around the rows, and the hairline under them.
+    private static let margin: CGFloat = 6 * 2 + 1
+
     var body: some View {
         if !omnibox.offers.isEmpty {
             VStack(spacing: 0) {
-                VStack(spacing: 0) {
+                NearestFirst(room: max(0, omnibox.room - Self.margin)) {
                     // Keyed by the place, so a keystroke that keeps a row
                     // keeps its view and only redraws the rows it changed.
                     ForEach(Array(omnibox.offers.enumerated()).reversed(), id: \.element.id) { index, offer in
-                        let picked = omnibox.picked == offer.key
+                        let picked = omnibox.picked == offer.id
+                        let fading = omnibox.fading.contains(offer.id)
                         Button {
-                            onGo(offer.url)
+                            if omnibox.chose(offer) { onGo(offer.url) }
                         } label: {
                             Row(offer: offer, picked: picked).equatable()
                         }
-                        .buttonStyle(Press(picked: picked))
+                        .buttonStyle(Press(picked: picked, onPress: { omnibox.pressed($0, id: "row:" + offer.id) }))
+                        // The row's own, before Fill stands over it, so Fill keeps its.
                         .accessibilityIdentifier("suggestion.\(index)")
+                        .overlay(alignment: .trailing) {
+                            if offer.isWords {
+                                Fill(words: offer.key, onPress: { omnibox.pressed($0, id: "fill:" + offer.id) }) { omnibox.fill(offer) }
+                            }
+                        }
+                        // Left by the last keystroke: holding its place until
+                        // the answer comes, and no answer to what is typed now.
+                        .animation(Motion.quick) { $0.opacity(fading ? 0.4 : 1) }
+                        .modifier(CappedRow(fading: fading))
                     }
                 }
+                .coordinateSpace(name: "suggestionRows")
                 .padding(6)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("suggestions")
@@ -49,6 +67,25 @@ struct Suggestions: View {
                     .frame(height: 1)
             }
         }
+    }
+}
+
+/// Layout keeps dropped rows alive for stable identity. Offscreen placement
+/// alone does not remove their buttons from the accessibility tree.
+private struct CappedRow: ViewModifier {
+    let fading: Bool
+    @State private var placed = false
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: Bool.self) { geometry in
+                // Allow subpixel rounding at the first kept row's origin.
+                geometry.frame(in: .named("suggestionRows")).minY >= -1
+            } action: { placed = $0 }
+            .allowsHitTesting(placed && !fading)
+            .accessibilityRepresentation {
+                if placed && !fading { content }
+            }
     }
 }
 
@@ -64,8 +101,14 @@ private struct Row: View, Equatable {
 
     var body: some View {
         HStack(spacing: 12) {
-            Mark(letter: Self.letter(offer.url), size: mark)
-                .accessibilityHidden(true)
+            Group {
+                if offer.isWords {
+                    Glyph(name: offer.kind == .searched ? "clock.arrow.circlepath" : "magnifyingglass", size: mark)
+                } else {
+                    Mark(letter: Self.letter(offer.url), size: mark)
+                }
+            }
+            .accessibilityHidden(true)
             KeyFirst {
                 Text(offer.key)
                     .ramp(.row)
@@ -95,15 +138,65 @@ private struct Row: View, Equatable {
                     .foregroundStyle(Palette.muted)
                     .accessibilityHidden(true)
             }
+            if offer.isWords {
+                // Room for Fill, which stands over the row's end.
+                Color.clear.frame(width: Fill.width - 12)
+            }
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
         .contentShape(.rect)
+        .accessibilityValue(offer.kind == .searched ? "Searched before" : offer.kind == .search ? "Suggested" : "")
     }
 
     private static func letter(_ url: URL) -> String {
         let host = url.host()?.replacingOccurrences(of: "www.", with: "") ?? ""
         return host.first.map { String($0).uppercased() } ?? "•"
+    }
+}
+
+/// The rows, nearest the field last, in the room there is above it: the
+/// farthest, the engine's, go first, out of sight rather than squeezed or
+/// scrolled, as KeyFirst's title does.
+struct NearestFirst: Layout {
+    var room: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let heights = Self.heights(proposal.width, subviews)
+        let width = proposal.width ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        return CGSize(width: width, height: heights.suffix(Self.kept(heights, room: room)).reduce(0, +))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let heights = Self.heights(bounds.width, subviews)
+        let dropped = heights.count - Self.kept(heights, room: room)
+        var y = bounds.minY
+        for (index, subview) in subviews.enumerated() {
+            let size = ProposedViewSize(width: bounds.width, height: heights[index])
+            guard index >= dropped else {
+                subview.place(at: CGPoint(x: bounds.minX, y: bounds.minY - 10_000), proposal: size)
+                continue
+            }
+            subview.place(at: CGPoint(x: bounds.minX, y: y), proposal: size)
+            y += heights[index]
+        }
+    }
+
+    /// How many of the last `heights` fit in `room`. The nearest always
+    /// does: it is the best match.
+    static func kept(_ heights: [CGFloat], room: CGFloat) -> Int {
+        var total: CGFloat = 0
+        var count = 0
+        for height in heights.reversed() {
+            total += height
+            guard total <= room || count == 0 else { break }
+            count += 1
+        }
+        return count
+    }
+
+    private static func heights(_ width: CGFloat?, _ subviews: Subviews) -> [CGFloat] {
+        subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
     }
 }
 
@@ -147,6 +240,8 @@ private struct KeyFirst: Layout {
 /// selection the field's ending wears: the two are one choice.
 private struct Press: ButtonStyle {
     let picked: Bool
+    /// Down, and up again, so nothing late moves the row meanwhile.
+    let onPress: (Bool) -> Void
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -156,7 +251,68 @@ private struct Press: ButtonStyle {
                         .fill(Palette.ink.opacity(picked ? 0.12 : 0.05))
                 }
             }
+            .onChange(of: configuration.isPressed) { _, down in onPress(down) }
+            .onDisappear { onPress(false) }
     }
+}
+
+/// The words into the field, without going, as Safari's arrow does: for
+/// carrying on from a suggestion rather than taking it as it is.
+private struct Fill: View {
+    static let width: CGFloat = 44
+
+    let words: String
+    let onPress: (Bool) -> Void
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.up.left")
+                .ramp(.glyph)
+                .fontWeight(.medium)
+                .foregroundStyle(Palette.muted)
+                .frame(width: Self.width, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(Pressed(onPress: onPress))
+        .accessibilityLabel("Fill in \(words)")
+        .accessibilityIdentifier("suggestion.fill")
+    }
+
+    /// Ink at 5% under a finger, in the row's corners.
+    private struct Pressed: ButtonStyle {
+        let onPress: (Bool) -> Void
+
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .background {
+                    if configuration.isPressed {
+                        RoundedRectangle.corner(Radius.row).fill(Palette.ink.opacity(0.05))
+                    }
+                }
+                .onChange(of: configuration.isPressed) { _, down in onPress(down) }
+                .onDisappear { onPress(false) }
+        }
+    }
+}
+
+/// A search's mark: what it is in the squircle a site's letter stands in.
+private struct Glyph: View {
+    let name: String
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: name)
+            .font(.system(size: size * 0.5, weight: .medium))
+            .foregroundStyle(Palette.muted)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle.corner(Radius.icon(size)).fill(Palette.ink.opacity(0.06)))
+    }
+}
+
+private extension Suggestion {
+    /// Words for an engine, rather than a place.
+    var isWords: Bool { kind == .search || kind == .searched }
 }
 
 /// A site's first letter in a squircle of ink, where its icon will go.

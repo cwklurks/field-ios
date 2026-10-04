@@ -2,13 +2,13 @@
 
 **Field Browser** (bundle `com.connork.fieldbrowser`) is an iPhone browser by Connor Klann, adapted from the Mac browser Search by Office Commun. This policy explains what Field does with information. It is short because Field does very little.
 
-Effective 2026-09-30.
+Effective 2026-10-03.
 
 ## What Field collects
 
 Nothing. Field collects no data about you.
 
-Field has no server of its own. There is no account to make and no sign-in. There is no analytics, no tracking, no advertising and no crash reporting. Field does not build a profile, does not use an advertising identifier and never asks for permission to track, because it has nothing to track.
+Field has no server of its own, so nothing reaches its developer. There is no account to make and no sign-in. There is no analytics, no tracking, no advertising and no crash reporting. Field does not build a profile, does not use an advertising identifier and never asks for permission to track, because it has nothing to track.
 
 This is what Apple's App Store privacy label for Field means by "Data Not Collected."
 
@@ -17,16 +17,31 @@ This is what Apple's App Store privacy label for Field means by "Data Not Collec
 Field keeps a few things, so it works like a browser should:
 
 - your browsing history;
+- the searches you make from the address field, so the field can offer them again;
 - your open tabs, and the session that brings them back;
 - Saved pages, their folders and "Read later";
-- your settings: the bar's look, the app's appearance and your search engine;
+- your settings: the bar's look, the app's appearance, your search engine and whether it suggests searches;
 - pictures of tabs, so a sleeping tab shows what it looked like while it wakes.
+
+Past searches are recorded when you submit them outside Private, even with live suggestions off, using the same address and secret filters; either way they stay on the phone. At most 500 are saved. **Clear Past Searches**, in Settings under Search suggestions, removes them all after a confirmation, and leaves your browsing history as it is.
 
 These live in the app's own folder on the phone, and your settings live in the app's own defaults. They are not sent anywhere. They go when you delete the app. As with any iPhone app, they are included in an encrypted phone backup if you back up your phone.
 
 ## What leaves your phone
 
-Only what it takes to load a page. When you open an address, that page and the resources and icons it asks for are fetched over the network, exactly as in any browser. The page you open can see your IP address and the request you made; that is how the web works.
+Page requests and, when enabled, search suggestions. When you open an address, that page and the resources and icons it asks for are fetched over the network, exactly as in any browser. The page you open can see your IP address and the request you made; that is how the web works.
+
+With **Search suggestions** on, what you type in the address field is sent to your search engine as you type, so it can suggest searches. It goes straight from your phone to the engine you chose in Settings (Google, DuckDuckGo, Bing, Ecosia, Kagi, Brave Search or Qwant; Startpage and a custom engine have no suggestions, so nothing is sent to them). The engine sees what you have typed so far and your IP address, as it would when you search. Field sends it:
+
+- never in Private;
+- only after filtering address-like text, known address prefixes, and likely passwords, keys, card or phone numbers and email addresses;
+- never for an empty field or a single letter;
+- without cookies, cached responses, stored credentials or a referrer, through an ephemeral session;
+- with a neutral User-Agent and a fixed English language header, rather than the app name or your preferred-language list. Redirects are refused.
+
+The filters are guesses, not a way to recognize every secret. Unrecognized secrets and the first letters of an unfamiliar address can be sent. Ordinary queries can also be withheld. Requests wait 120 ms after an edit, time out quickly, and are cancelled when superseded. Only an answer for the current query is shown.
+
+Search suggestions are on until you turn them off, in Settings under Search suggestions. With them off, nothing you type leaves the phone until you press Return.
 
 Nothing else is sent. Field does not phone home, does not check for updates over the network, and does not report anything about how it is used.
 
@@ -36,7 +51,7 @@ Field blocks ads and trackers using lists that ship inside the app: EasyList, Ea
 
 ## Private
 
-Private is a separate space you choose to enter. It keeps nothing on disk: its tabs, their pictures and their history live in memory only. Closing Private wipes it, along with everything its pages left in temporary storage. It locks when you leave, and shows a cover in the app switcher instead of the page. It goes blank while the screen is being recorded or shared.
+Private is a separate space you choose to enter. It keeps nothing on disk: its tabs, their pictures and their history live in memory only. In Private, what you type is never sent for suggestions, and the searches you make are not remembered. Closing Private wipes it, along with everything its pages left in temporary storage. It locks when you leave, and shows a cover in the app switcher instead of the page. It goes blank while the screen is being recorded or shared.
 
 Private is not a VPN and does not pretend to be. What it cannot do:
 

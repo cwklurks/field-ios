@@ -18,7 +18,9 @@ struct FieldApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                if Baseline.isOn {
+                if SuggestionFixture.isOn {
+                    SuggestionFixture()
+                } else if Baseline.isOn {
                     BaselineView()
                 } else {
                     // Built under the welcome too, so Continue has nothing
@@ -50,11 +52,11 @@ struct FieldApp: App {
             Signpost.log.emitEvent(Signpost.firstFrame)
             // Before the browser starts: the blocker watches the keyboard,
             // and has to see it come up for the field.
-            if !Baseline.isOn {
+            if !Baseline.isOn, !SuggestionFixture.isOn {
                 ContentBlocking.shared.prepare()
                 Guarded.load()
             }
-            if welcomed, !Baseline.isOn { browser.start() }
+            if welcomed, !Baseline.isOn, !SuggestionFixture.isOn { browser.start() }
         }
     }
 
