@@ -13,7 +13,15 @@ import Observation
 
     private(set) var history = History()
 
+    /// What was asked from the field (Searches), in searches.json beside
+    /// the history, by the same rules. Nobody draws it, so nobody watches it.
+    @ObservationIgnored private(set) var searches = Searches()
+    /// As `isLoaded`, for searches.json: a file that couldn't be read is
+    /// never written over.
+    @ObservationIgnored private var searchesLoaded = false
+
     @ObservationIgnored let file: HistoryFile
+    @ObservationIgnored let searchesFile: SearchesFile
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let wait: Duration
     /// Places made up for the perf tests; while there are any, the file is
@@ -22,6 +30,7 @@ import Observation
     @ObservationIgnored private var loading = false
     /// Changes made before the load finished, played again over what it read.
     @ObservationIgnored private var early: [(inout History) -> Void] = []
+    @ObservationIgnored private var earlySearches: [(String, Date)] = []
     /// How many changes there have been. A write carries it, so the file can
     /// tell an older snapshot arriving late from a newer one.
     @ObservationIgnored private var generation = 0
@@ -33,6 +42,7 @@ import Observation
     init(directory: URL, defaults: UserDefaults = .standard, wait: Duration = .seconds(1.5),
          seed: Int = HistoryStore.launchSeed) {
         file = HistoryFile(url: directory.appendingPathComponent("history.json"))
+        searchesFile = SearchesFile(url: directory.appendingPathComponent("searches.json"))
         self.defaults = defaults
         self.wait = wait
         self.seed = max(0, seed)
@@ -60,9 +70,16 @@ import Observation
         } else {
             guard let read = try? await file.read() else { return }
             loaded = read
+            if var asked = try? await searchesFile.read() {
+                for (words, when) in earlySearches { asked.record(words, now: when) }
+                searches = asked
+                searchesLoaded = true
+            }
         }
+        let searchedEarly = !earlySearches.isEmpty
+        earlySearches = []
         for change in early { change(&loaded) }
-        let replayed = !early.isEmpty
+        let replayed = !early.isEmpty || searchedEarly
         early = []
         history = loaded
         isLoaded = true
@@ -77,10 +94,23 @@ import Observation
         history.completion(for: text, among: among)
     }
 
+    func searchSuggestions(for text: String, template: String) -> [Suggestion] {
+        searches.suggestions(for: text, template: template)
+    }
+
+    /// Words asked of the engine from the field. Private never calls this.
+    func searched(_ words: String) {
+        let now = Date.now
+        searches.record(words, now: now)
+        generation += 1
+        if isLoaded { scheduleSave() } else { earlySearches.append((words, now)) }
+    }
+
     func visited(_ url: URL, title: String) {
         let now = Date.now
-        // What was asked is nobody's business, the history's included: a
-        // search counts as a visit to the engine, and no more.
+        // The history of places is no record of what was asked: a search
+        // counts as a visit to the engine, and no more. The words asked from
+        // the field are kept apart, in `searches`.
         if let engine = frontPage(ofResults: url) {
             change { $0.record(engine, title: "", now: now) }
         } else {
@@ -120,6 +150,7 @@ import Observation
         pending = nil
         guard isLoaded, seed == 0 else { return }
         try? await file.write(history, generation: generation, now: .now)
+        if searchesLoaded { try? await searchesFile.write(searches, generation: generation, now: .now) }
     }
 
     /// The engine's front page, when a page is one of its results: any
@@ -157,5 +188,23 @@ actor HistoryFile {
         try history.save(to: url, now: now)
         written = generation
         writes += 1
+    }
+}
+
+/// searches.json, as HistoryFile keeps history.json.
+actor SearchesFile {
+    let url: URL
+    private var written = 0
+
+    init(url: URL) { self.url = url }
+
+    func read() throws -> Searches {
+        try Searches.load(from: url)
+    }
+
+    func write(_ searches: Searches, generation: Int, now: Date) throws {
+        guard generation > written else { return }
+        try searches.save(to: url, now: now)
+        written = generation
     }
 }

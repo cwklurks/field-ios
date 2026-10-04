@@ -18,7 +18,9 @@ struct SuggestionRows: View {
     }
 }
 
-/// What it thinks you mean, the best match last, nearest the field.
+/// What it thinks you mean, the best match last, nearest the field. The
+/// engine's suggestions stand beyond the rest: they arrive late, and up
+/// there their arrival moves no row that was already under a finger.
 struct Suggestions: View {
     let omnibox: Omnibox
     let onGo: (URL) -> Void
@@ -30,13 +32,19 @@ struct Suggestions: View {
                     // Keyed by the place, so a keystroke that keeps a row
                     // keeps its view and only redraws the rows it changed.
                     ForEach(Array(omnibox.offers.enumerated()).reversed(), id: \.element.id) { index, offer in
-                        let picked = omnibox.picked == offer.key
+                        let picked = omnibox.picked == offer.id
                         Button {
+                            omnibox.chose(offer)
                             onGo(offer.url)
                         } label: {
                             Row(offer: offer, picked: picked).equatable()
                         }
                         .buttonStyle(Press(picked: picked))
+                        .overlay(alignment: .trailing) {
+                            if offer.isWords {
+                                Fill(words: offer.key) { omnibox.fill(offer) }
+                            }
+                        }
                         .accessibilityIdentifier("suggestion.\(index)")
                     }
                 }
@@ -64,8 +72,14 @@ private struct Row: View, Equatable {
 
     var body: some View {
         HStack(spacing: 12) {
-            Mark(letter: Self.letter(offer.url), size: mark)
-                .accessibilityHidden(true)
+            Group {
+                if offer.isWords {
+                    Glyph(name: offer.kind == .searched ? "clock.arrow.circlepath" : "magnifyingglass", size: mark)
+                } else {
+                    Mark(letter: Self.letter(offer.url), size: mark)
+                }
+            }
+            .accessibilityHidden(true)
             KeyFirst {
                 Text(offer.key)
                     .ramp(.row)
@@ -95,10 +109,15 @@ private struct Row: View, Equatable {
                     .foregroundStyle(Palette.muted)
                     .accessibilityHidden(true)
             }
+            if offer.isWords {
+                // Room for Fill, which stands over the row's end.
+                Color.clear.frame(width: Fill.width - 12)
+            }
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
         .contentShape(.rect)
+        .accessibilityValue(offer.kind == .searched ? "Searched before" : offer.kind == .search ? "Suggested" : "")
     }
 
     private static func letter(_ url: URL) -> String {
@@ -157,6 +176,60 @@ private struct Press: ButtonStyle {
                 }
             }
     }
+}
+
+/// The words into the field, without going, as Safari's arrow does: for
+/// carrying on from a suggestion rather than taking it as it is.
+private struct Fill: View {
+    static let width: CGFloat = 44
+
+    let words: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.up.left")
+                .ramp(.glyph)
+                .fontWeight(.medium)
+                .foregroundStyle(Palette.muted)
+                .frame(width: Self.width, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(Pressed())
+        .accessibilityLabel("Fill in \(words)")
+        .accessibilityIdentifier("suggestion.fill")
+    }
+
+    /// Ink at 5% under a finger, in the row's corners.
+    private struct Pressed: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .background {
+                    if configuration.isPressed {
+                        RoundedRectangle.corner(Radius.row).fill(Palette.ink.opacity(0.05))
+                    }
+                }
+        }
+    }
+}
+
+/// A search's mark: what it is in the squircle a site's letter stands in.
+private struct Glyph: View {
+    let name: String
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: name)
+            .font(.system(size: size * 0.5, weight: .medium))
+            .foregroundStyle(Palette.muted)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle.corner(Radius.icon(size)).fill(Palette.ink.opacity(0.06)))
+    }
+}
+
+private extension Suggestion {
+    /// Words for an engine, rather than a place.
+    var isWords: Bool { kind == .search || kind == .searched }
 }
 
 /// A site's first letter in a squircle of ink, where its icon will go.

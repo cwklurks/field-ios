@@ -229,7 +229,7 @@ enum AddressField {
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         /// A new one for each opening.
-        var omnibox: Omnibox
+        var omnibox: Omnibox { didSet { wire() } }
         var onGo: (URL) -> Void = { _ in }
         /// After each edit is answered, before it's drawn: the rows may have changed.
         var onEdited: () -> Void = {}
@@ -257,6 +257,7 @@ enum AddressField {
         init(omnibox: Omnibox) {
             self.omnibox = omnibox
             super.init()
+            wire()
             Keyboard.watch()
             NotificationCenter.default.addObserver(
                 self, selector: #selector(keyboardUp), name: UIResponder.keyboardDidShowNotification, object: nil
@@ -278,7 +279,23 @@ enum AddressField {
         /// still ends.
         func textFieldDidEndEditing(_ textField: UITextField) {
             FieldOpening.end()
+            omnibox.ended()
             onEnded()
+        }
+
+        /// The engine's rows land after their keystroke: measured again, and
+        /// the surface's top edge rises over them on the quick curve while
+        /// the rows nearer the field stay where they are. Fill writes a
+        /// row's words in as a paste is written: nothing finished after it.
+        private func wire() {
+            omnibox.onLate = { [weak self] in
+                SurfaceMotion.animate(.quick) { self?.onEdited() }
+            }
+            omnibox.onFill = { [weak self] words in
+                guard let self, let field else { return }
+                let end = words.utf16.count
+                edit(field, to: words, selection: end..<end, cause: .pasted)
+            }
         }
 
         func textField(_ textField: UITextField, shouldChangeCharactersInRanges ranges: [NSValue], replacementString string: String) -> Bool {

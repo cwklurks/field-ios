@@ -9,6 +9,8 @@ struct SettingsView: View {
     @AppStorage("look") private var look: Look = .system
     @AppStorage("engine") private var engine: Engine = .standard
     @AppStorage("engine.custom") private var custom = ""
+    /// Read by the field as you type (Omnibox).
+    @AppStorage(Suggest.defaultsKey) private var suggest = Suggest.enabledByDefault
     /// Read by the stale-tabs rule (StaleTabs.days).
     @AppStorage("staleDays") private var staleDays = Stale.defaultDays
     @Environment(\.dismiss) private var dismiss
@@ -43,6 +45,14 @@ struct SettingsView: View {
                 section("Search engine") {
                     Engines(engine: $engine, custom: $custom)
                 }
+                section("Search suggestions") {
+                    Segmented(options: [(true, "On"), (false, "Off")], selection: $suggest)
+                    Text(Self.suggestNote(on: suggest, engine: engine))
+                        .ramp(.caption)
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityIdentifier("settings.suggest")
                 section("Tabs untouched for") {
                     Segmented(options: [(7, "1 week"), (14, "2 weeks"), (30, "1 month")], selection: $staleDays)
                 }
@@ -60,6 +70,16 @@ struct SettingsView: View {
         // the sheet says it too, and changes the moment Appearance does.
         .preferredColorScheme(look.scheme)
         .accessibilityIdentifier("settings")
+    }
+
+    /// Plainly what the switch does, for the engine chosen.
+    static func suggestNote(on: Bool, engine: Engine) -> String {
+        guard on else { return "Nothing you type leaves the phone until you press Return." }
+        guard engine.suggests else {
+            return "\(engine.title) has no suggestions to offer, so nothing you type is sent until you press Return."
+        }
+        return "What you type is sent to \(engine.title) as you type, to suggest searches. Never in Private, "
+            + "and never an address or anything that looks like a password."
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
