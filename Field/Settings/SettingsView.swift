@@ -47,7 +47,7 @@ struct SettingsView: View {
                 }
                 section("Search suggestions") {
                     Segmented(options: [(true, "On"), (false, "Off")], selection: $suggest)
-                    Text(Self.suggestNote(on: suggest, engine: engine))
+                    Text(Self.suggestNote(on: suggest, engine: engine, custom: custom))
                         .ramp(.caption)
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -73,12 +73,12 @@ struct SettingsView: View {
     }
 
     /// Plainly what the switch does, for the engine chosen.
-    static func suggestNote(on: Bool, engine: Engine) -> String {
+    static func suggestNote(on: Bool, engine: Engine, custom: String) -> String {
         guard on else { return "Nothing you type leaves the phone until you press Return." }
         guard engine.suggests else {
-            return "\(engine.title) has no suggestions to offer, so nothing you type is sent until you press Return."
+            return "\(engine.name(custom: custom)) has no suggestions to offer, so nothing you type is sent until you press Return."
         }
-        return "What you type is sent to \(engine.title) as you type, to suggest searches. Never in Private, "
+        return "What you type is sent to \(engine.name(custom: custom)) as you type, to suggest searches. Never in Private, "
             + "and never an address or anything that looks like a password."
     }
 
