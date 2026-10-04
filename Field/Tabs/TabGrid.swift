@@ -631,6 +631,8 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         alert.addTextField { field in
             field.text = group.name
             field.clearButtonMode = .whileEditing
+            // Typing replaces the name; the tap or the arrow keys still edit it.
+            field.addAction(UIAction { action in (action.sender as? UITextField)?.selectAll(nil) }, for: .editingDidBegin)
         }
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         alert.addAction(UIAlertAction(title: "Rename", style: .default) { [weak self, weak alert] _ in
