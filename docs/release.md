@@ -27,7 +27,7 @@ Version 0.1 says "early" to testers and leaves 1.0 for the App Store. TestFlight
    - SKU: **field-ios**. It's private and never shown; any unique string will do.
    - User Access: Full Access
 
-3. **Fill the privacy label.** Under the app, go to App Privacy › Get Started. Answer **"No, we do not collect data from this app"**, then Publish. The label then reads "Data Not Collected". It's true as long as nothing but the pages you open leaves the phone, so answer again before anything else does (Tor bridges, list updates). App Privacy also asks for a privacy policy URL. The App Store needs one; for TestFlight, fill it in if asked. A short page saying Field collects nothing will do.
+3. **Fill the privacy label.** Under the app, go to App Privacy › Get Started. Answer **"No, we do not collect data from this app"**, then Publish. The label then reads "Data Not Collected". It's true as long as nothing but the pages you open leaves the phone, so answer again before anything else does (Tor bridges, list updates). Search suggestions already do: what is typed goes from the phone to the search engine the person chose, never to us, and is not kept by Field. Check App Privacy's definitions against that before answering, and say so in the policy (docs/privacy.md does). App Privacy also asks for a privacy policy URL. The App Store needs one; for TestFlight, fill it in if asked. A short page saying Field collects nothing will do.
 
 4. **Add yourself as an internal tester.** Open TestFlight › Internal Testing › `+`, make a group (for example "Me") and add yourself. Internal testers must be users on the team, and you already are as Account Holder. Internal builds need no review and arrive as soon as they've processed.
 

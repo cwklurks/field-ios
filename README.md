@@ -12,7 +12,7 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 
 ## What it does
 
-- **One field.** Type an address and you go there; type words and you search. It finishes addresses from your own history, and sends nothing you type until you press Return.
+- **One field.** Type an address and you go there; type words and you search. It finishes addresses and your past searches from your own history. With **Search suggestions** on (Settings, under Search engine), what you type is sent to your search engine as you type, so it can suggest searches; never in Private, and never an address or anything that looks like a password. Turn it off and nothing you type is sent until you press Return.
 - **One bar that stays out of the way.** Long-press back for forward and history, swipe the pill sideways to change tabs, swipe up for the tab grid. Scrolling shrinks the pill to the host name. Edge swipes go back and forward; pull down to reload.
 - **Tabs.** A grid of cards, two across; swipe a card away to close it. A tab you are not using sleeps and costs nothing until you return to it. Your tabs come back after a quit, and Recently Closed brings one back.
 - **Blocking, before the page.** Ads and trackers are stopped at the network level inside WebKit, so there is nothing to render. The lists are EasyList, EasyPrivacy and HaGeZi's domain lists, compiled once and enforced before a request is made. Each site has an off switch; popups get a small chip, and a page the blocker stops offers "Load anyway."
@@ -27,7 +27,7 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 On purpose:
 
 - No account, no sync, no cloud. Tabs, history and saved pages are on your phone and nowhere else.
-- No analytics, no tracking, no crash reports sent anywhere. The only things that leave the phone are the pages you open and what they load.
+- No analytics, no tracking, no crash reports sent anywhere. The only things that leave the phone are the pages you open and what they load, and, with Search suggestions on, what you type, to your search engine.
 - No sign-in wall, no start page, no suggested articles. The blank new tab is blank until you type.
 - No Tor. It is planned for a later release, not this one.
 - Tidy, the tab-grouping helper, is optional and still in progress.
@@ -36,10 +36,11 @@ On purpose:
 
 | What | Where it is | Who can read it |
 |---|---|---|
-| History, tabs, session, saved pages | Small JSON files in the app's Application Support folder | You. |
+| History, past searches, tabs, session, saved pages | Small JSON files in the app's Application Support folder | You. |
 | Settings | The app's own defaults | You. |
 | Cookies and site data | WebKit's own store for the app | The sites that set them, as in any browser. |
 | Pictures of tabs | The app's cache, in memory for private tabs | You. |
+| What you type, with Search suggestions on | Sent to your search engine as you type, without cookies; never in Private, never an address or a secret | Your search engine. |
 | Anything else | Nowhere. There is no server. | — |
 
 A **private tab** keeps its tabs, pictures and history in memory, in its own data store, and leaves nothing behind when Private closes. The full policy is in [docs/privacy.md](docs/privacy.md).
@@ -56,7 +57,7 @@ A **private tab** keeps its tabs, pictures and history in memory, in its own dat
 ## How it's put together
 
 - **SwiftUI** for everything drawn and **WKWebView** for pages, wrapped in one `UIViewRepresentable` that swaps each tab's web view in and out, so SwiftUI never rebuilds them.
-- **FieldKit**, a local Swift package with no UIKit and no WebKit where possible: address parsing, search engines, history ranking, the session format, the Saved model, registrable domains, the navigation guard and Tidy. It is tested fast on the Mac with `swift test`.
+- **FieldKit**, a local Swift package with no UIKit and no WebKit where possible: address parsing, search engines and their suggestions, history ranking, the session format, the Saved model, registrable domains, the navigation guard and Tidy. It is tested fast on the Mac with `swift test`.
 - **XcodeGen** builds the project from `project.yml`; there is no checked-in `.xcodeproj`.
 - `Field/` is one file per concern: the bar, the browser, tabs, blocking, the guard, Saved, Private and capture each live in a folder of their own, and `FieldKit/` holds the logic underneath.
 
