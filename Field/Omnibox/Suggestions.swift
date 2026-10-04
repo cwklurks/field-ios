@@ -40,12 +40,13 @@ struct Suggestions: View {
                             Row(offer: offer, picked: picked).equatable()
                         }
                         .buttonStyle(Press(picked: picked))
+                        // The row's own, before Fill stands over it, so Fill keeps its.
+                        .accessibilityIdentifier("suggestion.\(index)")
                         .overlay(alignment: .trailing) {
                             if offer.isWords {
                                 Fill(words: offer.key) { omnibox.fill(offer) }
                             }
                         }
-                        .accessibilityIdentifier("suggestion.\(index)")
                     }
                 }
                 .padding(6)

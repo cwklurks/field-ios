@@ -140,7 +140,8 @@ import Observation
 
     /// The Settings switch, or its default until it has been moved.
     private var suggesting: Bool {
-        defaults.object(forKey: Suggest.defaultsKey) as? Bool ?? Suggest.enabledByDefault
+        defaults.object(forKey: Suggest.defaultsKey) == nil
+            ? Suggest.enabledByDefault : defaults.bool(forKey: Suggest.defaultsKey)
     }
 
     /// The engine's answer for exactly what is typed, or nothing: a late
