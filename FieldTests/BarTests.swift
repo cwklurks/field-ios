@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Testing
 @testable import Field
 
@@ -32,5 +33,26 @@ struct BarTests {
         bar.say(URL(string: "data:text/html,hi"))
         #expect(bar.label.text == "data:")
         #expect(!bar.blank)
+    }
+}
+
+/// The address's press: dimmed while a finger is on it, and whole again
+/// however the finger leaves, a tap included. A tap on the pill brings the
+/// whole bar back, and its address mustn't stay dimmed (bar-polish B-01).
+@MainActor struct BarPressTests {
+    @Test func aFingerDownDimsTheAddress() {
+        let bar = BarContent()
+        bar.address.sendActions(for: .touchDown)
+        #expect(bar.address.alpha == 0.5)
+    }
+
+    @Test func everyWayTheFingerLeavesBringsItBack() {
+        for event: UIControl.Event in [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit] {
+            let bar = BarContent()
+            bar.address.sendActions(for: .touchDown)
+            #expect(bar.address.alpha == 0.5)
+            bar.address.sendActions(for: event)
+            #expect(bar.address.alpha == 1, "after \(event)")
+        }
     }
 }

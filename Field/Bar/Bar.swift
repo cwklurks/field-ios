@@ -84,6 +84,13 @@ final class BarContent: UIView {
         address.addSubview(label)
         address.addSubview(ring)
         address.accessibilityIdentifier = "bar.address"
+        // The finger on the address: it dims at once, the frame after the
+        // touch, and is whole again however the finger leaves. A tap that
+        // opens the field hides it in the same turn, so that frame never
+        // shows it whole; one on the pill grows the bar with it whole.
+        address.addAction(UIAction { [weak self] _ in self?.address.alpha = 0.5 }, for: .touchDown)
+        address.addAction(UIAction { [weak self] _ in self?.address.alpha = 1 },
+                          for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
 
         count.text = "1"
         count.font = .systemFont(ofSize: UIFontMetrics(forTextStyle: .footnote).scaledValue(for: Ramp.label.size), weight: .medium)

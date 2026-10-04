@@ -154,11 +154,8 @@ final class FieldSurface: UIViewController {
 
         let bar = surface.bar
         bar.address.addTarget(self, action: #selector(tapAddress(_:event:)), for: .touchUpInside)
-        bar.address.addAction(UIAction { [weak self] _ in
-            self?.press(true)
-            self?.prepare()
-        }, for: .touchDown)
-        bar.address.addAction(UIAction { [weak self] _ in self?.press(false) }, for: [.touchUpOutside, .touchCancel, .touchDragExit])
+        // Its press, the dim, is the bar's own (BarContent).
+        bar.address.addAction(UIAction { [weak self] _ in self?.prepare() }, for: .touchDown)
         bar.goBack = { [weak self] in self?.page.goBack() }
         bar.go = { [weak self] item in self?.page.go(to: item) }
         bar.history = { [weak self] in
@@ -466,13 +463,6 @@ final class FieldSurface: UIViewController {
     private var resting = false
     /// The field is unseen until the keyboard shows (hideUntilKeyboard).
     private var entering = false
-
-    /// The finger on the address: it dims at once, the frame after the touch,
-    /// and comes back if the finger leaves without a tap. A tap hides it.
-    private func press(_ down: Bool) {
-        guard flow.phase == .bar else { return }
-        surface.bar.address.alpha = down ? 0.5 : 1
-    }
 
     /// The finger is down on the address: everything the tap will show is
     /// made now, unseen, so that at the lift there is only a switch to throw
