@@ -60,6 +60,6 @@ Paste into App Store Connect's App Review Information.
 >
 > Ad and tracker blocking is on by default, and can be turned off for one site from the bar's long press.
 >
-> Search suggestions are on by default: what is typed in the bar is sent to the chosen search engine's public suggestion endpoint as it is typed, without cookies, and never in Private. They can be turned off in Settings, under Search engine. Address and secret filters are best effort: unfamiliar address prefixes and unrecognized secrets can still be sent. Requests use a neutral User-Agent and fixed English language header. Past searches are saved locally even with suggestions off; there is no in-app clearing control yet.
+> Search suggestions are on by default: what is typed in the bar is sent to the chosen search engine's public suggestion endpoint as it is typed, without cookies, and never in Private. They can be turned off in Settings, under Search suggestions. Address and secret filters are best effort: unfamiliar address prefixes and unrecognized secrets can still be sent. Requests use a neutral User-Agent and fixed English language header. Past searches are saved locally even with suggestions off, and Settings can clear them.
 >
 > Tor is not part of this build. It is planned for a later release, so any mention of it elsewhere does not apply to this version.

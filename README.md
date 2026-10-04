@@ -43,7 +43,7 @@ On purpose:
 | What you type, with Search suggestions on | Sent to your search engine as you type, without cookies; never in Private; address and secret filters are best effort | Your search engine. |
 | Anything else | Nowhere. There is no server. | — |
 
-Past searches are kept locally when you submit them, even with live suggestions off. There is currently no in-app control to clear them; deleting the app removes them.
+Past searches are kept locally when you submit them, even with live suggestions off. Settings › Search suggestions › Clear Past Searches removes them.
 
 A **private tab** keeps its tabs, pictures and history in memory, in its own data store, and leaves nothing behind when Private closes. The full policy is in [docs/privacy.md](docs/privacy.md).
 

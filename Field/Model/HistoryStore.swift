@@ -14,8 +14,8 @@ import Observation
     private(set) var history = History()
 
     /// What was asked from the field (Searches), in searches.json beside
-    /// the history, by the same rules. Nobody draws it, so nobody watches it.
-    @ObservationIgnored private(set) var searches = Searches()
+    /// the history, by the same rules. Settings draws whether there are any.
+    private(set) var searches = Searches()
     /// As `isLoaded`, for searches.json: a file that couldn't be read is
     /// never written over.
     @ObservationIgnored private var searchesLoaded = false
@@ -31,6 +31,8 @@ import Observation
     /// Changes made before the load finished, played again over what it read.
     @ObservationIgnored private var early: [(inout History) -> Void] = []
     @ObservationIgnored private var earlySearches: [(String, Date)] = []
+    /// Cleared before the file could be read: what it holds goes when it is.
+    @ObservationIgnored private var forgetOnLoad = false
     /// How many changes there have been. A write carries it, so the file can
     /// tell an older snapshot arriving late from a newer one.
     @ObservationIgnored private var generation = 0
@@ -80,11 +82,13 @@ import Observation
             isLoaded = true
         }
         if seed == 0, !searchesLoaded, var asked = try? await searchesFile.read() {
+            if forgetOnLoad { asked.forget() }
             for (words, when) in earlySearches { asked.record(words, now: when) }
             searches = asked
             searchesLoaded = true
-            replayed = replayed || !earlySearches.isEmpty
+            replayed = replayed || forgetOnLoad || !earlySearches.isEmpty
             earlySearches = []
+            forgetOnLoad = false
         }
         if replayed { scheduleSave() }
     }
@@ -107,6 +111,19 @@ import Observation
         searches.record(words, now: now)
         generation += 1
         if searchesLoaded { scheduleSave() } else if seed == 0 { earlySearches.append((words, now)) }
+    }
+
+    /// Settings' Clear Past Searches: every search goes, the places stay.
+    /// Saved as any change is; a file not yet read is cleared once it is.
+    func forgetSearches() {
+        searches.forget()
+        generation += 1
+        if searchesLoaded {
+            scheduleSave()
+        } else if seed == 0 {
+            earlySearches = []
+            forgetOnLoad = true
+        }
     }
 
     func visited(_ url: URL, title: String) {

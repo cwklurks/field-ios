@@ -23,7 +23,7 @@ Field keeps a few things, so it works like a browser should:
 - your settings: the bar's look, the app's appearance, your search engine and whether it suggests searches;
 - pictures of tabs, so a sleeping tab shows what it looked like while it wakes.
 
-Past searches are recorded when you submit them outside Private, even with live suggestions off, using the same address and secret filters. At most 500 are saved. There is currently no in-app control to clear past searches; deleting the app removes them.
+Past searches are recorded when you submit them outside Private, even with live suggestions off, using the same address and secret filters; either way they stay on the phone. At most 500 are saved. **Clear Past Searches**, in Settings under Search suggestions, removes them all after a confirmation, and leaves your browsing history as it is.
 
 These live in the app's own folder on the phone, and your settings live in the app's own defaults. They are not sent anywhere. They go when you delete the app. As with any iPhone app, they are included in an encrypted phone backup if you back up your phone.
 
@@ -41,7 +41,7 @@ With **Search suggestions** on, what you type in the address field is sent to yo
 
 The filters are guesses, not a way to recognize every secret. Unrecognized secrets and the first letters of an unfamiliar address can be sent. Ordinary queries can also be withheld. Requests wait 120 ms after an edit, time out quickly, and are cancelled when superseded. Only an answer for the current query is shown.
 
-Search suggestions are on until you turn them off, in Settings under Search engine. With them off, nothing you type leaves the phone until you press Return.
+Search suggestions are on until you turn them off, in Settings under Search suggestions. With them off, nothing you type leaves the phone until you press Return.
 
 Nothing else is sent. Field does not phone home, does not check for updates over the network, and does not report anything about how it is used.
 

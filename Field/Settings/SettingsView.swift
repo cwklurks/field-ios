@@ -5,6 +5,9 @@ import UIKit
 /// The few things there are to choose: how the bar looks, how the app looks,
 /// and where searches go.
 struct SettingsView: View {
+    /// Where past searches are kept, for clearing them.
+    let history: HistoryStore
+
     @AppStorage("bar.look") private var barLook: BarLook = .glass
     @AppStorage("look") private var look: Look = .system
     @AppStorage("engine") private var engine: Engine = .standard
@@ -51,7 +54,10 @@ struct SettingsView: View {
                         .ramp(.caption)
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
+                    PastSearches(history: history)
                 }
+                // A container, so Clear Past Searches keeps its own.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("settings.suggest")
                 section("Tabs untouched for") {
                     Segmented(options: [(7, "1 week"), (14, "2 weeks"), (30, "1 month")], selection: $staleDays)
@@ -100,21 +106,21 @@ enum SettingsSheet {
 
     /// Two seconds on, when no finger is down (the timer doesn't fire while
     /// the run loop tracks one) and `busy` says nothing else is going on.
-    static func prepareSoon(unless busy: @escaping @MainActor () -> Bool, tries: Int = 0) {
+    static func prepareSoon(_ history: HistoryStore, unless busy: @escaping @MainActor () -> Bool, tries: Int = 0) {
         guard tries < 20 else { return }
         Timer.scheduledTimer(withTimeInterval: tries == 0 ? 2 : 0.5, repeats: false) { _ in
             MainActor.assumeIsolated {
                 guard host == nil else { return }
-                if busy() { return prepareSoon(unless: busy, tries: tries + 1) }
-                _ = prepared()
+                if busy() { return prepareSoon(history, unless: busy, tries: tries + 1) }
+                _ = prepared(history)
             }
         }
     }
 
-    static func present(onDismiss: @escaping () -> Void) {
+    static func present(_ history: HistoryStore, onDismiss: @escaping () -> Void) {
         guard var top = window?.rootViewController else { return }
         while let next = top.presentedViewController { top = next }
-        let host = prepared()
+        let host = prepared(history)
         guard host.presentingViewController == nil else { return }
         host.onDismiss = onDismiss
         top.present(host, animated: true)
@@ -124,10 +130,10 @@ enum SettingsSheet {
         UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
     }
 
-    private static func prepared() -> Host {
+    private static func prepared(_ history: HistoryStore) -> Host {
         if let host { return host }
         // A sheet would have these from the root; a UIKit one doesn't.
-        let host = Host(rootView: AnyView(SettingsView().tint(Palette.ink).dynamicTypeSize(...Ramp.cap)))
+        let host = Host(rootView: AnyView(SettingsView(history: history).tint(Palette.ink).dynamicTypeSize(...Ramp.cap)))
         host.view.backgroundColor = Palette.UI.ground
         self.host = host
         // A hosting view builds nothing out of a window, and the first open
@@ -154,6 +160,41 @@ enum SettingsSheet {
             if presentingViewController == nil { onDismiss() }
         }
     }
+}
+
+/// Past searches, kept on the phone whether or not the engine is asked as
+/// you type, and gone at a word: a small confirmation, since they don't
+/// come back.
+private struct PastSearches: View {
+    let history: HistoryStore
+    @State private var asking = false
+
+    var body: some View {
+        let none = history.searches.isEmpty
+        VStack(alignment: .leading, spacing: 4) {
+            Button { asking = true } label: {
+                Text("Clear Past Searches")
+                    .ramp(.row)
+                    .foregroundStyle(none ? Palette.muted : Palette.ink)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .disabled(none)
+            .accessibilityIdentifier("settings.clearSearches")
+            .confirmationDialog("Clear past searches?", isPresented: $asking, titleVisibility: .visible) {
+                Button("Clear Past Searches", role: .destructive) { history.forgetSearches() }
+            } message: {
+                Text("The field stops offering the searches you made. History stays.")
+            }
+            Text(Self.note)
+                .ramp(.caption)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    static let note = "Searches you make are kept on this phone to offer again, with suggestions on or off. Never in Private."
 }
 
 /// The presets, one tick for the chosen one, and a template of your own.

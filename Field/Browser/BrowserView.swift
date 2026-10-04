@@ -25,7 +25,7 @@ struct BrowserView: View {
             }) {
                 // Straight from the tap, not from inside SwiftUI's next update.
                 browser.settingsShown = true
-                SettingsSheet.present { browser.settingsShown = false }
+                SettingsSheet.present(browser.history) { browser.settingsShown = false }
             }
                 // Edge to edge, under the status bar too, as in Safari: the
                 // page is one surface from top to bottom.
@@ -62,7 +62,7 @@ struct BrowserView: View {
         // Settings is made ahead of the tap (SettingsSheet), but never
         // between keystrokes or under a coasting page.
         .onAppear {
-            SettingsSheet.prepareSoon {
+            SettingsSheet.prepareSoon(browser.history) {
                 let scroll = browser.tab.web?.scrollView
                 return browser.fieldOpen || scroll?.isTracking == true || scroll?.isDecelerating == true
             }

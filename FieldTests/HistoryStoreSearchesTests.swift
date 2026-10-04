@@ -85,4 +85,56 @@ struct HistoryStoreSearchesTests {
         await history.flush()
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
+
+    @Test func clearingForgetsEverySearchAndSavesTheEmptyList() async throws {
+        defer { clean() }
+        let history = store()
+        await history.load()
+        history.visited(URL(string: "https://swift.org")!, title: "Swift")
+        history.searched("swift concurrency")
+        history.searched("swift charts")
+        await history.flush()
+        #expect(try Searches.load(from: file).count == 2)
+
+        history.forgetSearches()
+        #expect(history.searches.isEmpty)
+        #expect(history.searchSuggestions(for: "swi", template: google).isEmpty)
+        await history.flush()
+        #expect(try Searches.load(from: file).isEmpty)
+        // Places stay: only what was asked goes.
+        #expect(!history.suggestions(for: "swift").isEmpty)
+    }
+
+    @Test func clearingBeforeTheLoadClearsWhatItReads() async throws {
+        defer { clean() }
+        var before = Searches()
+        before.record("swift charts", now: .now)
+        try before.save(to: file)
+        let history = store()
+        history.forgetSearches()
+        history.searched("swift after")
+        await history.load()
+        #expect(history.searches.count == 1)
+        await history.flush()
+        #expect(try Searches.load(from: file).count == 1)
+    }
+
+    @Test func clearingNeverWritesOverAFileThatCannotBeRead() async throws {
+        defer { clean() }
+        var before = Searches()
+        before.record("swift charts", now: .now)
+        try before.save(to: file)
+        let bytes = try Data(contentsOf: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: file.path)
+
+        let history = store()
+        await history.load()
+        history.forgetSearches()
+        await history.flush()
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+        #expect(try Data(contentsOf: file) == bytes)
+        // Read at last, it is cleared then.
+        await history.load()
+        #expect(history.searches.isEmpty)
+    }
 }
