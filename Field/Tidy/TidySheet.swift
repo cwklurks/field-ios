@@ -38,7 +38,7 @@ struct TidySheet: View {
     // MARK: - parts
 
     private var title: String {
-        draft.mode == .tidy ? "Tidy" : "Add similar tabs"
+        draft.mode == .tidy ? "Tidy" : "Add Similar Tabs"
     }
 
     private var header: some View {

@@ -92,8 +92,23 @@ final class TidyTour: XCTestCase {
         try await pause(1.2)
         app.buttons["Rename"].firstMatch.tap()
         try await pause(1)
-        app.typeText("Trip\n")
+        let name = app.alerts["Rename Group"].textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("Trip")
+        XCTAssertEqual(name.value as? String, "Trip", "typing must replace the selected group name")
+        let selection = XCTAttachment(screenshot: app.screenshot())
+        selection.name = "Rename replacement"
+        selection.lifetime = .keepAlways
+        add(selection)
+        app.alerts["Rename Group"].buttons["Rename"].tap()
         try await pause(2)
+        header.press(forDuration: 0.8)
+        app.buttons["Add Similar Tabs"].firstMatch.tap()
+        XCTAssertFalse(app.element("tidy").exists, "an empty lookup must leave the grid showing")
+        let empty = XCTAttachment(screenshot: app.screenshot())
+        empty.name = "No similar tabs"
+        empty.lifetime = .keepAlways
+        add(empty)
         app.element("tabs.done").tap()
         try await pause(2)
     }

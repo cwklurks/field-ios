@@ -185,6 +185,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// before it comes back, so the two are never both on screen. `now`, it
     /// goes in the frame the bar takes its place.
     func showRow(_ shown: Bool, now: Bool = false) {
+        if !shown { TidySheets.cancelReading() }
         row.layer.removeAllAnimations()
         banner?.layer.removeAllAnimations()
         for view in row.subviews { view.alpha = 1 }
@@ -216,6 +217,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
 
     /// The strip's progress, inside its animation: the lift moves with it.
     func privateProgress(_ p: CGFloat) {
+        if p > 0 { TidySheets.cancelReading() }
         count.progress = p
         count.layoutIfNeeded()
     }
@@ -631,6 +633,8 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         alert.addTextField { field in
             field.text = group.name
             field.clearButtonMode = .whileEditing
+            // Typing replaces the name; the tap or the arrow keys still edit it.
+            field.addAction(UIAction { action in (action.sender as? UITextField)?.selectAll(nil) }, for: .editingDidBegin)
         }
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         alert.addAction(UIAlertAction(title: "Rename", style: .default) { [weak self, weak alert] _ in

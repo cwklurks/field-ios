@@ -23,7 +23,6 @@ struct PrivateSettings {
 struct PrivateSettingsSection: View {
     @AppStorage(PrivateSettings.awayKey) private var away: PrivateLock.Away = .lock
     @AppStorage(PrivateSettings.wipeAfterKey) private var wipeAfter = 0
-    @State private var limits = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,7 +32,8 @@ struct PrivateSettingsSection: View {
                 .ramp(.caption).foregroundStyle(Palette.muted)
             Text("Wipe when away for").ramp(.caption).foregroundStyle(Palette.muted).padding(.top, 8)
             Segmented(options: PrivateSettings.wipeChoices.map { ($0, Self.title($0)) }, selection: $wipeAfter)
-            Button { limits = true } label: {
+            // Use the same presenter as Private's welcome page.
+            Button(action: PrivateLimits.present) {
                 HStack {
                     Text("What Private can't do").ramp(.row)
                     Spacer()
@@ -45,7 +45,6 @@ struct PrivateSettingsSection: View {
             .buttonStyle(.plain)
             .padding(.top, 4)
         }
-        .sheet(isPresented: $limits) { PrivateLimits() }
     }
 
     static func title(_ minutes: Int) -> String {
