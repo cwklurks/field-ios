@@ -7,7 +7,7 @@ import UIKit
 /// The bar going down with the keyboard after a tap outside or Go: it stays
 /// a gap above the keyboard's top, as the field did, until it reaches its
 /// place, rather than falling behind and landing after the keyboard has gone
-/// (bar-polish B-04).
+/// (bar-polish B-03).
 struct KeyboardRideTests {
     /// What UIKit gives the rider on the iPhone 17 simulator, iOS 26.
     static let spring = KeyboardRide.Spring(mass: 1, stiffness: 555.0265, damping: 47.118, velocity: 0)

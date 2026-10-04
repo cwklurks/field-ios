@@ -58,7 +58,7 @@ struct BarTests {
 }
 
 /// The ring beside the address fades in and out with the load rather than
-/// blinking (bar-polish B-03): shown at once, and gone to nothing.
+/// blinking (bar-polish B-05): shown at once, and gone to nothing.
 @MainActor struct RingTests {
     @Test func aLoadShowsItAndItsEndFadesItOut() {
         let ring = RingView()
