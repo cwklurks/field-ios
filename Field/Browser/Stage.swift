@@ -162,7 +162,8 @@ final class Stage: UIView {
 
     /// Apply, then Undo from the toast.
     private static func flow(for tabs: Tabs) -> TidyFlow {
-        TidyFlow(grouping: { tabs.grouping }, regroup: { tabs.regroup($0) }, toast: { tabs.offer($0, $1) })
+        TidyFlow(grouping: { tabs.grouping }, regroup: { tabs.regroup($0) }, toast: { tabs.offer($0, $1) },
+                 announce: { tabs.announce($0) })
     }
 
     /// 0 on your tabs, 1 in Private: the grid's switch follows it.

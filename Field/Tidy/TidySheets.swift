@@ -51,6 +51,11 @@ enum TidySheets {
         reading = Task {
             let found = await engine.similar(named: group.name, members: members, among: loose)
             guard !Task.isCancelled else { return }
+            // Nothing to show: a toast says it, not a sheet with a dead Add.
+            guard found.contains(where: { draft.info[$0] != nil }) else {
+                host?.dismiss(animated: true)
+                return flow.announce("No other tabs look like these.")
+            }
             withAnimation(Motion.calm(Motion.settle)) { draft.receiveSimilar(found) }
         }
     }

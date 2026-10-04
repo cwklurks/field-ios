@@ -112,13 +112,17 @@ import SwiftUI
     private let grouping: () -> Session.Grouping
     private let regroup: (Session.Grouping) -> Void
     private let toast: (String, Toaster.Offer) -> Void
+    /// A plain line, with nothing to undo.
+    let announce: (String) -> Void
 
     init(grouping: @escaping () -> Session.Grouping,
          regroup: @escaping (Session.Grouping) -> Void,
-         toast: @escaping (String, Toaster.Offer) -> Void) {
+         toast: @escaping (String, Toaster.Offer) -> Void,
+         announce: @escaping (String) -> Void = { _ in }) {
         self.grouping = grouping
         self.regroup = regroup
         self.toast = toast
+        self.announce = announce
     }
 
     func apply(_ draft: TidyDraft) {
