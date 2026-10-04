@@ -440,7 +440,11 @@ final class FieldSurface: UIViewController {
     @objc private func keyboardHiding(_ note: Notification) {
         guard !Keyboard.warming else { return }
         hiding = SurfaceMotion.Curve(keyboard: note)
+        // A close already on its way (a tap outside, Go) is what sent the
+        // keyboard down: the bar goes down on it.
+        let closing = flow.phase == .closing
         handle(.keyboardHiding)
+        if closing { keepOnKeyboard() }
     }
 
     @objc private func defaultsChanged() {
@@ -491,6 +495,7 @@ final class FieldSurface: UIViewController {
         }
         if !(tapped && prepared) { draft() }
         prepared = false
+        letKeepGo()
         hiding = nil
         held = false
         listed = 0
@@ -754,6 +759,43 @@ final class FieldSurface: UIViewController {
     /// going down after a swipe: about seven frames, as in Messages, where
     /// UIKit gives the rider a few.
     static let keyboardFinish: CFTimeInterval = 7.0 / 60
+
+    /// The bar down on the keyboard's own spring, the field's gap above its
+    /// top until it's home (KeyboardRide), not on the rider, which the
+    /// keyboard outran. Additive on the surface, timed as the rider's ride,
+    /// and nothing at either end, so it lands where it would have.
+    private func keepOnKeyboard() {
+        guard let (keep, offset) = KeyboardRide.keep(along: rider.layer.animation(forKey: "position"),
+                                                     rest: view.safeAreaInsets.bottom, gap: Self.gap) else { return }
+        surface.layer.add(keep, forKey: Self.keep)
+        let layer = surface.layer
+        kept = { [weak layer] in
+            guard let layer, let begun = layer.animation(forKey: Self.keep)?.beginTime, begun > 0 else { return 0 }
+            return offset(layer.convertTime(CACurrentMediaTime(), from: nil) - begun)
+        }
+    }
+
+    /// Where the keep has the bar now, below the rider.
+    private var kept: () -> CGFloat = { 0 }
+    private static let keep = "keepOnKeyboard"
+
+    /// The field wanted again mid-close, with the keyboard turning back:
+    /// the keep goes from where it has the bar, on the quick curve, not in a
+    /// jump.
+    private func letKeepGo() {
+        guard surface.layer.animation(forKey: Self.keep) != nil else { return }
+        let now = kept()
+        surface.layer.removeAnimation(forKey: Self.keep)
+        kept = { 0 }
+        guard now > 0 else { return }
+        let fade = CABasicAnimation(keyPath: "transform.translation.y")
+        fade.fromValue = now
+        fade.toValue = 0
+        fade.duration = 0.14
+        fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        fade.isAdditive = true
+        surface.layer.add(fade, forKey: "letKeepGo")
+    }
 
     /// Leaves everything where the finger had it.
     private func stopDragging() {
