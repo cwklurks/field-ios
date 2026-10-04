@@ -14,6 +14,8 @@ final class SurfaceBackground: UIView {
     }
 
     private var glass: UIVisualEffectView?
+    /// Marks a glass on its way out after a change of tone.
+    static let leaving = 0x676f
     /// A blur under dark glass. Dark glass clears far more of what's under
     /// it than light glass does, and a page's text read through it as words.
     private var frost: UIVisualEffectView?
@@ -107,7 +109,17 @@ final class SurfaceBackground: UIView {
             glass.overrideUserInterfaceStyle = tone
             glass.effect = effect
             insertSubview(glass, aboveSubview: old)
-            old.removeFromSuperview()
+            // The old one goes in the same animation as this one comes, when
+            // there is one: taken away in a frame, a dark pill cut to grey
+            // before the light glass had come in.
+            let going = UIView.inheritedAnimationDuration
+            if going > 0 {
+                old.tag = Self.leaving
+                old.effect = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + going) { old.removeFromSuperview() }
+            } else {
+                old.removeFromSuperview()
+            }
             self.glass = glass
             frost?.effect = traits.userInterfaceStyle == .dark ? UIBlurEffect(style: .systemUltraThinMaterialDark) : nil
         }
