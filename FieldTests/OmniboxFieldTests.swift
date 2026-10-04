@@ -29,6 +29,17 @@ import UIKit
         #expect(coordinator.omnibox.draft.typed == "w")
     }
 
+    @Test func aKeyboardFrameChangeRemeasuresTheRoomWithoutAnotherShow() throws {
+        let (field, coordinator, window) = try focus(URL(string: "https://example.com")!)
+        defer { window.isHidden = true }
+        coordinator.open(field)
+        NotificationCenter.default.post(name: UIResponder.keyboardDidShowNotification, object: nil)
+        let before = coordinator.omnibox.room
+        field.frame.origin.y += 80
+        NotificationCenter.default.post(name: UIResponder.keyboardDidChangeFrameNotification, object: nil)
+        #expect(coordinator.omnibox.room == before + 80)
+    }
+
     private func focus(_ initial: URL) throws -> (AddressField.Input, AddressField.Coordinator, UIWindow) {
         let scene = try #require(UIApplication.shared.connectedScenes.first as? UIWindowScene)
         let window = UIWindow(windowScene: scene)

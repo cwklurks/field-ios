@@ -262,6 +262,9 @@ enum AddressField {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(keyboardUp), name: UIResponder.keyboardDidShowNotification, object: nil
             )
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(keyboardFrameChanged), name: UIResponder.keyboardDidChangeFrameNotification, object: nil
+            )
         }
 
         /// Takes typing from here on. The keyboard may already be up (it
@@ -477,6 +480,11 @@ enum AddressField {
             keystrokes = []
             if let commit { CFRunLoopObserverInvalidate(commit) }
             commit = nil
+        }
+
+        @objc private func keyboardFrameChanged() {
+            guard field?.isFirstResponder == true else { return }
+            if fit() { onEdited() }
         }
 
         /// Focused, with the keyboard up: the field has opened.
