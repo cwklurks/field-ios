@@ -78,8 +78,8 @@ struct SettingsView: View {
         guard engine.suggests else {
             return "\(engine.name(custom: custom)) has no suggestions to offer, so nothing you type is sent until you press Return."
         }
-        return "What you type is sent to \(engine.name(custom: custom)) as you type, to suggest searches. Never in Private, "
-            + "and never an address or anything that looks like a password."
+        return "What you type is sent to \(engine.name(custom: custom)) to suggest searches. Never in Private. "
+            + "Address and password filters cannot catch everything. Turn this off to keep typing on your phone until you go."
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {

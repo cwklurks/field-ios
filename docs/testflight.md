@@ -34,7 +34,7 @@ For friends. Paste the list as it is.
 > - Open eight or more tabs, swipe up for the grid, swipe a card away to close it, then force-quit and reopen. Your tabs should come back.
 > - Star a page to Saved, make a folder, and try Read later.
 > - Long-press the address and use Capture Page to save a long page as a PDF, and again as one image. Then press side + volume up and use Full Page in the screenshot editor.
-> - Type a few words in the bar slowly. Your past searches and pages sit nearest the field; your search engine's suggestions appear above them without moving them. Tap the arrow on a suggestion to put it in the field without going. Then turn Search suggestions off in Settings, or enter Private, and check none appear.
+> - Type a few words in the bar slowly. Your past searches and pages sit nearest the field; your search engine's suggestions appear above them without moving them. Tap the arrow on a suggestion to put it in the field without going. Then turn Search suggestions off in Settings, or enter Private, and check no engine suggestions appear (local history and past searches can still appear).
 > - Enter Private, sign in to something if you like, then leave and come back. It should lock, and closing it should wipe it. Read the "What Private can't do" screen.
 >
 > What feedback helps most:
@@ -60,6 +60,6 @@ Paste into App Store Connect's App Review Information.
 >
 > Ad and tracker blocking is on by default, and can be turned off for one site from the bar's long press.
 >
-> Search suggestions are on by default: what is typed in the bar is sent to the chosen search engine's public suggestion endpoint as it is typed, without cookies, and never in Private. They can be turned off in Settings, under Search engine.
+> Search suggestions are on by default: what is typed in the bar is sent to the chosen search engine's public suggestion endpoint as it is typed, without cookies, and never in Private. They can be turned off in Settings, under Search engine. Address and secret filters are best effort: unfamiliar address prefixes and unrecognized secrets can still be sent. Requests use a neutral User-Agent and fixed English language header. Past searches are saved locally even with suggestions off; there is no in-app clearing control yet.
 >
 > Tor is not part of this build. It is planned for a later release, so any mention of it elsewhere does not apply to this version.

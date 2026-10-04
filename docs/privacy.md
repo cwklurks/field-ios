@@ -23,18 +23,23 @@ Field keeps a few things, so it works like a browser should:
 - your settings: the bar's look, the app's appearance, your search engine and whether it suggests searches;
 - pictures of tabs, so a sleeping tab shows what it looked like while it wakes.
 
+Past searches are recorded when you submit them outside Private, even with live suggestions off, using the same address and secret filters. At most 500 are saved. There is currently no in-app control to clear past searches; deleting the app removes them.
+
 These live in the app's own folder on the phone, and your settings live in the app's own defaults. They are not sent anywhere. They go when you delete the app. As with any iPhone app, they are included in an encrypted phone backup if you back up your phone.
 
 ## What leaves your phone
 
-Only what it takes to load a page. When you open an address, that page and the resources and icons it asks for are fetched over the network, exactly as in any browser. The page you open can see your IP address and the request you made; that is how the web works.
+Page requests and, when enabled, search suggestions. When you open an address, that page and the resources and icons it asks for are fetched over the network, exactly as in any browser. The page you open can see your IP address and the request you made; that is how the web works.
 
 With **Search suggestions** on, what you type in the address field is sent to your search engine as you type, so it can suggest searches. It goes straight from your phone to the engine you chose in Settings (Google, DuckDuckGo, Bing, Ecosia, Kagi, Brave Search or Qwant; Startpage and a custom engine have no suggestions, so nothing is sent to them). The engine sees what you have typed so far and your IP address, as it would when you search. Field sends it:
 
 - never in Private;
-- never when what you type is an address, the start of an address the field already knows, or something that looks like a password, a key, a card or phone number or an email address;
+- only after filtering address-like text, known address prefixes, and likely passwords, keys, card or phone numbers and email addresses;
 - never for an empty field or a single letter;
-- without cookies, without a cache and without a referrer, from a connection that keeps nothing.
+- without cookies, cached responses, stored credentials or a referrer, through an ephemeral session;
+- with a neutral User-Agent and a fixed English language header, rather than the app name or your preferred-language list. Redirects are refused.
+
+The filters are guesses, not a way to recognize every secret. Unrecognized secrets and the first letters of an unfamiliar address can be sent. Ordinary queries can also be withheld. Requests wait 120 ms after an edit, time out quickly, and are cancelled when superseded. Only an answer for the current query is shown.
 
 Search suggestions are on until you turn them off, in Settings under Search engine. With them off, nothing you type leaves the phone until you press Return.
 

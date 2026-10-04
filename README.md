@@ -12,7 +12,7 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 
 ## What it does
 
-- **One field.** Type an address and you go there; type words and you search. It finishes addresses and your past searches from your own history. With **Search suggestions** on (Settings, under Search engine), what you type is sent to your search engine as you type, so it can suggest searches; never in Private, and never an address or anything that looks like a password. Turn it off and nothing you type is sent until you press Return.
+- **One field.** Type an address and you go there; type words and you search. It finishes addresses and your past searches from your own history. With **Search suggestions** on (Settings, under Search engine), what you type is sent to your search engine as you type, so it can suggest searches; never in Private. Address-like text and likely secrets are filtered, but these guesses cannot catch every secret or an address before it becomes recognizable. Turn it off and nothing you type is sent until you press Return.
 - **One bar that stays out of the way.** Long-press back for forward and history, swipe the pill sideways to change tabs, swipe up for the tab grid. Scrolling shrinks the pill to the host name. Edge swipes go back and forward; pull down to reload.
 - **Tabs.** A grid of cards, two across; swipe a card away to close it. A tab you are not using sleeps and costs nothing until you return to it. Your tabs come back after a quit, and Recently Closed brings one back.
 - **Blocking, before the page.** Ads and trackers are stopped at the network level inside WebKit, so there is nothing to render. The lists are EasyList, EasyPrivacy and HaGeZi's domain lists, compiled once and enforced before a request is made. Each site has an off switch; popups get a small chip, and a page the blocker stops offers "Load anyway."
@@ -40,8 +40,10 @@ On purpose:
 | Settings | The app's own defaults | You. |
 | Cookies and site data | WebKit's own store for the app | The sites that set them, as in any browser. |
 | Pictures of tabs | The app's cache, in memory for private tabs | You. |
-| What you type, with Search suggestions on | Sent to your search engine as you type, without cookies; never in Private, never an address or a secret | Your search engine. |
+| What you type, with Search suggestions on | Sent to your search engine as you type, without cookies; never in Private; address and secret filters are best effort | Your search engine. |
 | Anything else | Nowhere. There is no server. | — |
+
+Past searches are kept locally when you submit them, even with live suggestions off. There is currently no in-app control to clear them; deleting the app removes them.
 
 A **private tab** keeps its tabs, pictures and history in memory, in its own data store, and leaves nothing behind when Private closes. The full policy is in [docs/privacy.md](docs/privacy.md).
 
