@@ -137,4 +137,40 @@ struct HistoryStoreSearchesTests {
         await history.load()
         #expect(history.searches.isEmpty)
     }
+    @Test func clearingWithAScheduledSaveDoesNotRestoreTheOldSearches() async throws {
+        defer { clean() }
+        let history = HistoryStore(directory: directory, wait: .milliseconds(30), seed: 0)
+        await history.load()
+        history.searched("swift before")
+        history.forgetSearches()
+        history.searched("swift after")
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(try Searches.load(from: file).suggestions(for: "swift", template: google).map(\.key) == ["swift after"])
+    }
+
+    @Test func anOldSaveArrivingAfterClearCannotRestoreSearches() async throws {
+        defer { clean() }
+        var before = Searches()
+        before.record("swift before")
+        let disk = SearchesFile(url: file)
+        try await disk.write(Searches(), generation: 2, now: .now)
+        try await disk.write(before, generation: 1, now: .now)
+        #expect(try Searches.load(from: file).isEmpty)
+    }
+
+    @Test func clearingDuringALoadKeepsOnlySearchesMadeAfterClear() async throws {
+        defer { clean() }
+        var before = Searches()
+        before.record("swift before")
+        try before.save(to: file)
+        let history = store()
+        let loading = Task { await history.load() }
+        await Task.yield()
+        history.forgetSearches()
+        history.searched("swift after")
+        await loading.value
+        await history.flush()
+        #expect(try Searches.load(from: file).suggestions(for: "swift", template: google).map(\.key) == ["swift after"])
+    }
+
 }
