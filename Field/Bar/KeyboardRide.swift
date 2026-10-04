@@ -64,18 +64,46 @@ extension KeyboardRide {
     /// itself, and the same as a function of the time since it began.
     static func keep(along ride: CAAnimation?, rest: CGFloat, gap: CGFloat)
         -> (animation: CAKeyframeAnimation, offset: (CFTimeInterval) -> CGFloat)? {
-        guard let ride = ride as? CASpringAnimation, ride.isAdditive,
-              let from = (ride.fromValue as? NSValue)?.cgPointValue, from.y < 0 else { return nil }
+        // This correction is valid only for a vertical, additive spring
+        // ending at zero on an ordinary clock. UIKit owns that contract:
+        // if it changes, leave the layout-guide ride alone.
+        guard let ride = ride as? CASpringAnimation,
+              ride.keyPath == "position", ride.isAdditive, ride.byValue == nil,
+              let fromValue = ride.fromValue as? NSValue,
+              let toValue = ride.toValue as? NSValue,
+              String(cString: fromValue.objCType) == String(cString: NSValue(cgPoint: .zero).objCType),
+              String(cString: toValue.objCType) == String(cString: NSValue(cgPoint: .zero).objCType),
+              ride.speed == 1, ride.timeOffset == 0,
+              ride.repeatCount == 0, ride.repeatDuration == 0, !ride.autoreverses,
+              ride.duration.isFinite, ride.duration > 0, ride.duration <= 1,
+              ride.beginTime.isFinite,
+              ride.mass.isFinite, ride.mass > 0,
+              ride.stiffness.isFinite, ride.stiffness > 0,
+              ride.damping.isFinite, ride.damping > 0,
+              ride.initialVelocity.isFinite,
+              rest.isFinite, gap.isFinite, rest > gap, gap >= 0,
+              ride.timingFunction == nil || ride.timingFunction == CAMediaTimingFunction(name: .linear)
+        else { return nil }
+        let from = fromValue.cgPointValue
+        guard from.x == 0, from.y.isFinite, from.y < 0, toValue.cgPointValue == .zero else { return nil }
         let spring = Spring(mass: ride.mass, stiffness: ride.stiffness, damping: ride.damping, velocity: ride.initialVelocity)
         let path = KeyboardRide(travel: -from.y, rest: rest, gap: gap)
         let duration = ride.duration
+        // A truncated or unsettled spring would remove a nonzero offset in
+        // one frame. Unknown spring shapes also fall back to UIKit's ride.
+        guard abs(path.offset(at: spring.progress(at: duration))) < 0.5 else { return nil }
         let steps = 48
         let keep = CAKeyframeAnimation(keyPath: "transform.translation.y")
-        keep.values = (0...steps).map { path.offset(at: spring.progress(at: duration * Double($0) / Double(steps))) }
+        keep.values = (0...steps).map { step in
+            step == steps ? 0 : path.offset(at: spring.progress(at: duration * Double(step) / Double(steps)))
+        }
         keep.keyTimes = (0...steps).map { NSNumber(value: Double($0) / Double(steps)) }
         keep.beginTime = ride.beginTime
         keep.duration = duration
         keep.isAdditive = true
-        return (keep, { path.offset(at: spring.progress(at: min($0, duration))) })
+        return (keep, { time in
+            guard time > 0, time < duration else { return 0 }
+            return path.offset(at: spring.progress(at: time))
+        })
     }
 }

@@ -69,4 +69,25 @@ struct BarTests {
         ring.loading = false
         #expect(ring.alpha == 0)
     }
+    @Test func stoppingAndRestartingCannotLeaveAnInvisibleSpin() async throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let ring = RingView(frame: CGRect(x: 0, y: 0, width: 10, height: 10))
+        window.addSubview(ring)
+        ring.loading = true
+        let shape = try #require(ring.layer.sublayers?.first)
+        #expect(shape.animation(forKey: "turn") != nil)
+        ring.loading = false
+        ring.loading = true
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!ring.isHidden)
+        #expect(ring.alpha == 1)
+        ring.loading = false
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(ring.isHidden)
+        #expect(shape.animation(forKey: "turn") == nil)
+        ring.loading = true
+        ring.removeFromSuperview()
+        #expect(shape.animation(forKey: "turn") == nil)
+    }
+
 }

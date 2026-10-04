@@ -7,7 +7,7 @@ final class SurfaceBackground: UIView {
         didSet { if look != oldValue { build() } }
     }
     var tone: UIUserInterfaceStyle = .unspecified {
-        didSet { if tone != oldValue { paint() } }
+        didSet { if tone != oldValue || !UIView.areAnimationsEnabled { paint() } }
     }
     var radius: CGFloat = 0 {
         didSet { shape() }
@@ -81,6 +81,9 @@ final class SurfaceBackground: UIView {
 
     private func shape() {
         glass?.cornerConfiguration = .corners(radius: .fixed(radius))
+        for old in subviews where old.tag == Self.leaving {
+            old.cornerConfiguration = .corners(radius: .fixed(radius))
+        }
         frost?.cornerConfiguration = .corners(radius: .fixed(radius))
         edge?.layer.cornerRadius = radius
         far?.layer.cornerRadius = radius
@@ -94,8 +97,14 @@ final class SurfaceBackground: UIView {
 
     private func paint() {
         let traits = traits()
-        guard traits.userInterfaceStyle != painted else { return }
+        let finishing = !UIView.areAnimationsEnabled && subviews.contains { $0.tag == Self.leaving }
+        guard traits.userInterfaceStyle != painted || finishing else { return }
         painted = traits.userInterfaceStyle
+        // An immediate change (notably entry into Private) also ends any
+        // earlier tone fade, so no light material survives its first frame.
+        if UIView.inheritedAnimationDuration == 0 || !UIView.areAnimationsEnabled {
+            subviews.filter { $0.tag == Self.leaving }.forEach { $0.removeFromSuperview() }
+        }
         if let old = glass {
             let effect = UIGlassEffect(style: .regular)
             effect.tintColor = Palette.UI.ground.resolvedColor(with: traits).withAlphaComponent(0.6)
@@ -113,10 +122,10 @@ final class SurfaceBackground: UIView {
             // there is one: taken away in a frame, a dark pill cut to grey
             // before the light glass had come in.
             let going = UIView.inheritedAnimationDuration
-            if going > 0 {
+            if going > 0 && UIView.areAnimationsEnabled {
                 old.tag = Self.leaving
                 old.effect = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + going) { old.removeFromSuperview() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + going) { [weak old] in old?.removeFromSuperview() }
             } else {
                 old.removeFromSuperview()
             }

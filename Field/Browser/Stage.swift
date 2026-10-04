@@ -384,6 +384,14 @@ final class Stage: UIView {
         settle(step, velocity: 0)
     }
 
+    /// Editing the host already advertised by a glide must target that
+    /// tab, rather than draft the outgoing page and switch underneath it.
+    func finishSwitching() -> Bool {
+        guard flight == nil, !tabs.gridShown, offset != 0 else { return false }
+        finishMoving()
+        return true
+    }
+
     /// Picks up from wherever the page is, even mid-spring.
     private func beginSliding() {
         if let animator, flight == nil {

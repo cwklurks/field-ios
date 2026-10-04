@@ -88,4 +88,30 @@ struct KeyboardRideTests {
         #expect(KeyboardRide.keep(along: CABasicAnimation(keyPath: "position"), rest: 34, gap: 8) == nil)
         #expect(KeyboardRide.keep(along: nil, rest: 34, gap: 8) == nil)
     }
+    @MainActor @Test func unfamiliarAnimationsFallBackToTheUnmodifiedRider() {
+        let mutations: [(CASpringAnimation) -> Void] = [
+            { $0.toValue = NSValue(cgPoint: CGPoint(x: 0, y: 100)) },
+            { $0.fromValue = NSValue(cgPoint: CGPoint(x: 10, y: -267)) },
+            { $0.speed = 2 },
+            { $0.timeOffset = 0.1 },
+            { $0.repeatCount = 2 },
+            { $0.autoreverses = true },
+            { $0.duration = 0.05 },
+            { $0.timingFunction = CAMediaTimingFunction(name: .easeIn) },
+            { $0.fromValue = NSNumber(value: -267) },
+        ]
+        for (index, mutate) in mutations.enumerated() {
+            let ride = CASpringAnimation(keyPath: "position")
+            ride.mass = 1
+            ride.stiffness = 555.0265
+            ride.damping = 47.118
+            ride.duration = 0.3833
+            ride.fromValue = NSValue(cgPoint: CGPoint(x: 0, y: -267))
+            ride.toValue = NSValue(cgPoint: .zero)
+            ride.isAdditive = true
+            mutate(ride)
+            #expect(KeyboardRide.keep(along: ride, rest: 34, gap: 8) == nil, "variant \(index)")
+        }
+    }
+
 }

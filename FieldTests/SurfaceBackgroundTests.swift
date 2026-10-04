@@ -25,4 +25,30 @@ import UIKit
         background.tone = .light
         #expect(glasses(background) == 1)
     }
+    @Test func anImmediateToneChangeRemovesAllLeavingGlass() {
+        let background = SurfaceBackground()
+        background.tone = .dark
+        UIView.animate(withDuration: 0.3) { background.tone = .light }
+        UIView.performWithoutAnimation { background.tone = .dark }
+        #expect(glasses(background) == 1)
+    }
+
+    @Test func leavingGlassFollowsTheMorphsCorners() throws {
+        let background = SurfaceBackground()
+        background.radius = 17
+        background.tone = .dark
+        UIView.animate(withDuration: 0.3) { background.tone = .light }
+        let old = try #require(background.subviews.first { $0.tag == SurfaceBackground.leaving })
+        background.radius = 12
+        #expect(old.cornerConfiguration == .corners(radius: .fixed(12)))
+    }
+
+    @Test func privateCanFinishAnAlreadyDarkToneFadeImmediately() {
+        let background = SurfaceBackground()
+        background.tone = .light
+        UIView.animate(withDuration: 0.3) { background.tone = .dark }
+        UIView.performWithoutAnimation { background.tone = .dark }
+        #expect(glasses(background) == 1)
+    }
+
 }

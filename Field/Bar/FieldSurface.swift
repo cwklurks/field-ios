@@ -208,6 +208,7 @@ final class FieldSurface: UIViewController {
         center.addObserver(self, selector: #selector(keyboardShowing(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
         center.addObserver(self, selector: #selector(keyboardShown), name: UIResponder.keyboardDidShowNotification, object: nil)
         center.addObserver(self, selector: #selector(defaultsChanged), name: UserDefaults.didChangeNotification, object: nil)
+        center.addObserver(self, selector: #selector(stopKeeping), name: UIApplication.willResignActiveNotification, object: nil)
         defaultsChanged()
         if browser.opensInField { restInField() }
     }
@@ -232,6 +233,16 @@ final class FieldSurface: UIViewController {
         // Brought all the way back with the finger still down: the field
         // again now, its own text in the address's place, not at the lift.
         if gone == 0 { springBack(on: .quick) }
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        stopKeeping()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+        stopKeeping()
+        super.viewWillTransition(to: size, with: coordinator)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -493,7 +504,10 @@ final class FieldSurface: UIViewController {
             FieldOpening.begin()
             opened = .now
         }
-        if !(tapped && prepared) { draft() }
+        // Only the completed tap commits the destination. Touch-down also
+        // begins a swipe, which must still be able to catch the glide.
+        let switched = browser.tabs.stage?.finishSwitching() ?? false
+        if !(tapped && prepared && !switched) { draft() }
         prepared = false
         letKeepGo()
         hiding = nil
@@ -765,8 +779,16 @@ final class FieldSurface: UIViewController {
     /// keyboard outran. Additive on the surface, timed as the rider's ride,
     /// and nothing at either end, so it lands where it would have.
     private func keepOnKeyboard() {
-        guard let (keep, offset) = KeyboardRide.keep(along: rider.layer.animation(forKey: "position"),
+        // Never stack a second close on the previous reopen's correction.
+        // Unknown or interrupted UIKit timing falls back to the layout guide.
+        stopKeeping()
+        guard !UIAccessibility.isReduceMotionEnabled,
+              surface.layer.speed == 1, rider.layer.speed == 1,
+              let (keep, offset) = KeyboardRide.keep(along: rider.layer.animation(forKey: "position"),
                                                      rest: view.safeAreaInsets.bottom, gap: Self.gap) else { return }
+        if keep.beginTime > 0 {
+            keep.beginTime = surface.layer.convertTime(keep.beginTime, from: rider.layer)
+        }
         surface.layer.add(keep, forKey: Self.keep)
         let layer = surface.layer
         kept = { [weak layer] in
@@ -779,6 +801,12 @@ final class FieldSurface: UIViewController {
     private var kept: () -> CGFloat = { 0 }
     private static let keep = "keepOnKeyboard"
 
+    @objc private func stopKeeping() {
+        surface.layer.removeAnimation(forKey: Self.keep)
+        surface.layer.removeAnimation(forKey: "letKeepGo")
+        kept = { 0 }
+    }
+
     /// The field wanted again mid-close, with the keyboard turning back:
     /// the keep goes from where it has the bar, on the quick curve, not in a
     /// jump.
@@ -787,7 +815,7 @@ final class FieldSurface: UIViewController {
         let now = kept()
         surface.layer.removeAnimation(forKey: Self.keep)
         kept = { 0 }
-        guard now > 0 else { return }
+        guard now > 0, !UIAccessibility.isReduceMotionEnabled else { return }
         let fade = CABasicAnimation(keyPath: "transform.translation.y")
         fade.fromValue = now
         fade.toValue = 0
