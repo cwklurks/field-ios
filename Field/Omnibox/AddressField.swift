@@ -289,6 +289,7 @@ enum AddressField {
         /// row's words in as a paste is written: nothing finished after it.
         private func wire() {
             omnibox.onLate = { [weak self] in
+                self?.fit()
                 SurfaceMotion.animate(.quick) { self?.onEdited() }
             }
             omnibox.onFill = { [weak self] words in
@@ -334,7 +335,21 @@ enum AddressField {
 
             let draft = omnibox.edited(to: text, selection: selection, marked: field.markedTextRange != nil, cause: cause)
             apply(draft, to: field)
+            fit()
             onEdited()
+        }
+
+        /// The room above the field, for the rows: up to the safe area's
+        /// top, a gap short of it, as the surface stands a gap off the
+        /// keyboard. Where the field will be, not where it is in an animation.
+        @discardableResult
+        private func fit() -> Bool {
+            guard let field, let window = field.window else { return false }
+            let top = field.convert(CGPoint.zero, to: window).y
+            let room = max(0, top - window.safeAreaInsets.top - 8)
+            guard omnibox.room != room else { return false }
+            omnibox.room = room
+            return true
         }
 
         func textFieldDidChangeSelection(_ textField: UITextField) {
@@ -468,6 +483,8 @@ enum AddressField {
         @objc private func keyboardUp() {
             guard field?.isFirstResponder == true else { return }
             FieldOpening.end()
+            // Another keyboard, taller or shorter, moves the field.
+            if fit() { onEdited() }
         }
     }
 }

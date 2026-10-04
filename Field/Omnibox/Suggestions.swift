@@ -20,33 +20,43 @@ struct SuggestionRows: View {
 
 /// What it thinks you mean, the best match last, nearest the field. The
 /// engine's suggestions stand beyond the rest: they arrive late, and up
-/// there their arrival moves no row that was already under a finger.
+/// there their arrival moves no row that was already under a finger. While
+/// a finger is on a row nothing late arrives at all (Omnibox.pressed).
 struct Suggestions: View {
     let omnibox: Omnibox
     let onGo: (URL) -> Void
 
+    /// Around the rows, and the hairline under them.
+    private static let margin: CGFloat = 6 * 2 + 1
+
     var body: some View {
         if !omnibox.offers.isEmpty {
             VStack(spacing: 0) {
-                VStack(spacing: 0) {
+                NearestFirst(room: max(0, omnibox.room - Self.margin)) {
                     // Keyed by the place, so a keystroke that keeps a row
                     // keeps its view and only redraws the rows it changed.
                     ForEach(Array(omnibox.offers.enumerated()).reversed(), id: \.element.id) { index, offer in
                         let picked = omnibox.picked == offer.id
+                        let fading = omnibox.fading.contains(offer.id)
                         Button {
                             omnibox.chose(offer)
                             onGo(offer.url)
                         } label: {
                             Row(offer: offer, picked: picked).equatable()
                         }
-                        .buttonStyle(Press(picked: picked))
+                        .buttonStyle(Press(picked: picked, onPress: omnibox.pressed))
                         // The row's own, before Fill stands over it, so Fill keeps its.
                         .accessibilityIdentifier("suggestion.\(index)")
                         .overlay(alignment: .trailing) {
                             if offer.isWords {
-                                Fill(words: offer.key) { omnibox.fill(offer) }
+                                Fill(words: offer.key, onPress: omnibox.pressed) { omnibox.fill(offer) }
                             }
                         }
+                        // Left by the last keystroke: holding its place until
+                        // the answer comes, and no answer to what is typed now.
+                        .animation(Motion.quick) { $0.opacity(fading ? 0.4 : 1) }
+                        .allowsHitTesting(!fading)
+                        .accessibilityHidden(fading)
                     }
                 }
                 .padding(6)
@@ -127,6 +137,51 @@ private struct Row: View, Equatable {
     }
 }
 
+/// The rows, nearest the field last, in the room there is above it: the
+/// farthest, the engine's, go first, out of sight rather than squeezed or
+/// scrolled, as KeyFirst's title does.
+struct NearestFirst: Layout {
+    var room: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let heights = Self.heights(proposal.width, subviews)
+        let width = proposal.width ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        return CGSize(width: width, height: heights.suffix(Self.kept(heights, room: room)).reduce(0, +))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let heights = Self.heights(bounds.width, subviews)
+        let dropped = heights.count - Self.kept(heights, room: room)
+        var y = bounds.minY
+        for (index, subview) in subviews.enumerated() {
+            let size = ProposedViewSize(width: bounds.width, height: heights[index])
+            guard index >= dropped else {
+                subview.place(at: CGPoint(x: bounds.minX, y: bounds.minY - 10_000), proposal: size)
+                continue
+            }
+            subview.place(at: CGPoint(x: bounds.minX, y: y), proposal: size)
+            y += heights[index]
+        }
+    }
+
+    /// How many of the last `heights` fit in `room`. The nearest always
+    /// does: it is the best match.
+    static func kept(_ heights: [CGFloat], room: CGFloat) -> Int {
+        var total: CGFloat = 0
+        var count = 0
+        for height in heights.reversed() {
+            total += height
+            guard total <= room || count == 0 else { break }
+            count += 1
+        }
+        return count
+    }
+
+    private static func heights(_ width: CGFloat?, _ subviews: Subviews) -> [CGFloat] {
+        subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+    }
+}
+
 /// The address, then the title in what room is left. A title with too little
 /// room to say anything isn't drawn: a key long enough to leave a sliver
 /// would otherwise end in a clipped letter.
@@ -167,6 +222,8 @@ private struct KeyFirst: Layout {
 /// selection the field's ending wears: the two are one choice.
 private struct Press: ButtonStyle {
     let picked: Bool
+    /// Down, and up again, so nothing late moves the row meanwhile.
+    let onPress: (Bool) -> Void
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -176,6 +233,7 @@ private struct Press: ButtonStyle {
                         .fill(Palette.ink.opacity(picked ? 0.12 : 0.05))
                 }
             }
+            .onChange(of: configuration.isPressed) { _, down in onPress(down) }
     }
 }
 
@@ -185,6 +243,7 @@ private struct Fill: View {
     static let width: CGFloat = 44
 
     let words: String
+    let onPress: (Bool) -> Void
     let action: () -> Void
 
     var body: some View {
@@ -196,13 +255,15 @@ private struct Fill: View {
                 .frame(width: Self.width, height: 44)
                 .contentShape(.rect)
         }
-        .buttonStyle(Pressed())
+        .buttonStyle(Pressed(onPress: onPress))
         .accessibilityLabel("Fill in \(words)")
         .accessibilityIdentifier("suggestion.fill")
     }
 
     /// Ink at 5% under a finger, in the row's corners.
     private struct Pressed: ButtonStyle {
+        let onPress: (Bool) -> Void
+
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
                 .background {
@@ -210,6 +271,7 @@ private struct Fill: View {
                         RoundedRectangle.corner(Radius.row).fill(Palette.ink.opacity(0.05))
                     }
                 }
+                .onChange(of: configuration.isPressed) { _, down in onPress(down) }
         }
     }
 }

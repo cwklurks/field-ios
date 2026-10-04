@@ -18,6 +18,13 @@ import Observation
     private(set) var refused = false
     /// Bumped on each refusal, to shake again.
     private(set) var refusals = 0
+    /// Rows the last keystroke left behind, kept in their place until the
+    /// answer for the new words comes: drawn faded, and out of reach, since
+    /// none of them is an answer to what is typed now.
+    private(set) var fading: Set<String> = []
+    /// How tall the rows may stand, from the field up to the safe area's
+    /// top, told by the field (its coordinator). The farthest go first.
+    var room: CGFloat = .infinity
 
     /// The engine's suggestions changed with no keystroke: the rows need
     /// measuring again (the field's coordinator).
@@ -41,8 +48,14 @@ import Observation
     /// The rows from the phone, and the engine's beyond them.
     @ObservationIgnored private var near: [Suggestion] = []
     @ObservationIgnored private var far: [Suggestion] = []
-    /// Local rows waiting to leave when the current answer is ready.
+    /// Rows waiting to leave when the current answer is ready (`fading`).
     @ObservationIgnored private var outgoing: [Suggestion] = []
+    /// How long they wait for it, before going anyway.
+    @ObservationIgnored private let patience: Duration
+    @ObservationIgnored private var waiting: Task<Void, Never>?
+    /// Fingers on rows. Until the last lifts, nothing that arrives late
+    /// changes the rows, so the one under a finger is the one it takes.
+    @ObservationIgnored private var touching = 0
     /// What was typed when the engine's rows were last asked for.
     @ObservationIgnored private var asked = ""
 
@@ -51,13 +64,15 @@ import Observation
 
     init(
         initial: URL?, history: HistoryStore, defaults: UserDefaults = .standard,
-        privately: @escaping () -> Bool = { true }, suggester: Suggester = Suggester()
+        privately: @escaping () -> Bool = { true }, suggester: Suggester = Suggester(),
+        patience: Duration = .seconds(1)
     ) {
         self.initial = initial
         self.history = history
         self.defaults = defaults
         self.privately = privately
         self.suggester = suggester
+        self.patience = patience
         draft = Draft(text: initial.map(Address.pretty) ?? "")
     }
 
@@ -76,14 +91,21 @@ import Observation
         let request = Suggest.request(
             for: text, engine: engine, privately: privately(), enabled: suggesting, near: list
         )
+        // What was showing waits for the answer, in no more room than it
+        // had, so the panel neither shrinks nor grows until the answer
+        // lands. An engine answer belongs to one query: its rows wait
+        // faded, and can't be taken for the new words.
         let current = Set(list.map(\.id))
-        outgoing = request == nil ? [] : (near + outgoing).filter { !current.contains($0.id) }
-        outgoing = Array(outgoing.prefix(max(0, Offers.nearLimit - list.count)))
+        let shown = offers.count
+        outgoing = request == nil ? [] : (near + outgoing + far).filter { !current.contains($0.id) }
+        outgoing = Array(outgoing.prefix(max(0, shown - list.count)))
         near = list
-        // Only local rows can wait. An engine answer belongs to one query.
         far = []
         asked = text
+        // A keystroke is never held: the field changed under the finger too.
+        touching = 0
         publish()
+        wait(for: text)
         if picked != draft.match?.id { picked = draft.match?.id }
         if refused { refused = false }
         suggester.ask(request, allowed: { [weak self] in
@@ -133,6 +155,15 @@ import Observation
     /// The field closed: nothing more is to be sent.
     func ended() {
         suggester.stop()
+        waiting?.cancel()
+    }
+
+    /// A finger came down on a row, or lifted, or slid off. What arrived
+    /// while it was down is shown when the last one lifts.
+    func pressed(_ down: Bool) {
+        touching = max(0, touching + (down ? 1 : -1))
+        guard touching == 0, publish() else { return }
+        onLate()
     }
 
     // MARK: -
@@ -158,9 +189,27 @@ import Observation
     /// checks again.
     private func answered(_ words: [String], for text: String) {
         guard text == asked else { return }
+        waiting?.cancel()
         outgoing = []
         far = Offers.remote(words, typed: text, near: near, template: template)
-        guard publish() else { return }
+        late()
+    }
+
+    /// The rows left behind go, if the answer for `text` hasn't come in time.
+    private func wait(for text: String) {
+        waiting?.cancel()
+        guard !outgoing.isEmpty else { return }
+        waiting = Task { [weak self, patience] in
+            try? await Task.sleep(for: patience)
+            guard !Task.isCancelled, let self, text == self.asked else { return }
+            self.outgoing = []
+            self.late()
+        }
+    }
+
+    /// A change no keystroke made, shown unless a finger is on a row.
+    private func late() {
+        guard touching == 0, publish() else { return }
         onLate()
     }
 
@@ -168,6 +217,8 @@ import Observation
     @discardableResult
     private func publish() -> Bool {
         let all = near + outgoing + far
+        let gone = Set(outgoing.map(\.id))
+        if fading != gone { fading = gone }
         guard offers != all else { return false }
         offers = all
         if listed == all.isEmpty { listed = !all.isEmpty }

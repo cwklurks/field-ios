@@ -177,7 +177,9 @@ import FieldKit
         try await settle()
         #expect(!box.offers.isEmpty)
         type("goat ", into: box)
-        #expect(box.offers.allSatisfy { $0.kind != .search })
+        // It may hold its place until the new answer, but only faded, out
+        // of reach (OmniboxHoldTests).
+        #expect(box.offers.filter { $0.kind == .search }.allSatisfy { box.fading.contains($0.id) })
         box.ended()
     }
 
