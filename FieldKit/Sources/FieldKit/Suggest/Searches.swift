@@ -35,7 +35,7 @@ public struct Searches: Equatable, Sendable {
         let key = words.lowercased()
         var seen = asked[key] ?? Asked(words: words, count: 0, last: now)
         seen.words = words
-        seen.count += 1
+        if seen.count < Int.max { seen.count += 1 }
         seen.last = now
         asked[key] = seen
     }
@@ -70,7 +70,8 @@ public struct Searches: Equatable, Sendable {
             .sorted {
                 if $0.start != $1.start { return $0.start }
                 if $0.score != $1.score { return $0.score > $1.score }
-                return $0.asked.words.count < $1.asked.words.count
+                if $0.asked.words.count != $1.asked.words.count { return $0.asked.words.count < $1.asked.words.count }
+                return $0.asked.words < $1.asked.words
             }
             .prefix(limit)
             .compactMap { item in
@@ -104,7 +105,12 @@ public struct Searches: Equatable, Sendable {
             Store.quarantine(file)
             return searches
         }
-        searches.asked = Dictionary(list.map { ($0.words.lowercased(), $0) }) { one, other in
+        let valid = list.compactMap { item -> Asked? in
+            let words = Suggest.tidy(item.words)
+            guard Suggest.mayLeave(words), item.count > 0 else { return nil }
+            return Asked(words: words, count: item.count, last: item.last)
+        }
+        searches.asked = Dictionary(valid.map { ($0.words.lowercased(), $0) }) { one, other in
             one.last >= other.last ? one : other
         }
         return searches

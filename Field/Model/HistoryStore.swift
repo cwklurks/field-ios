@@ -61,28 +61,31 @@ import Observation
     /// false, and a later call can try again. With a seed, the places are
     /// made up instead, off the main thread like a read.
     func load() async {
-        guard !isLoaded, !loading else { return }
+        guard !loading, !isLoaded || (!searchesLoaded && seed == 0) else { return }
         loading = true
         defer { loading = false }
-        var loaded: History
-        if seed > 0 {
-            loaded = await Task.detached(priority: .userInitiated) { [seed] in History.sample(seed, now: .now) }.value
-        } else {
-            guard let read = try? await file.read() else { return }
-            loaded = read
-            if var asked = try? await searchesFile.read() {
-                for (words, when) in earlySearches { asked.record(words, now: when) }
-                searches = asked
-                searchesLoaded = true
+        var replayed = false
+        if !isLoaded {
+            var loaded: History
+            if seed > 0 {
+                loaded = await Task.detached(priority: .userInitiated) { [seed] in History.sample(seed, now: .now) }.value
+            } else {
+                guard let read = try? await file.read() else { return }
+                loaded = read
             }
+            for change in early { change(&loaded) }
+            replayed = !early.isEmpty
+            early = []
+            history = loaded
+            isLoaded = true
         }
-        let searchedEarly = !earlySearches.isEmpty
-        earlySearches = []
-        for change in early { change(&loaded) }
-        let replayed = !early.isEmpty || searchedEarly
-        early = []
-        history = loaded
-        isLoaded = true
+        if seed == 0, !searchesLoaded, var asked = try? await searchesFile.read() {
+            for (words, when) in earlySearches { asked.record(words, now: when) }
+            searches = asked
+            searchesLoaded = true
+            replayed = replayed || !earlySearches.isEmpty
+            earlySearches = []
+        }
         if replayed { scheduleSave() }
     }
 
@@ -103,7 +106,7 @@ import Observation
         let now = Date.now
         searches.record(words, now: now)
         generation += 1
-        if isLoaded { scheduleSave() } else { earlySearches.append((words, now)) }
+        if searchesLoaded { scheduleSave() } else if seed == 0 { earlySearches.append((words, now)) }
     }
 
     func visited(_ url: URL, title: String) {

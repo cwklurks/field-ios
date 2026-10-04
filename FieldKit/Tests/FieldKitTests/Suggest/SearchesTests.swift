@@ -66,6 +66,13 @@ struct SearchesTests {
             == ["swift charts", "swift concurrency", "swift testing"])
     }
 
+    @Test func tiedSearchesHaveAStableOrder() {
+        var searches = Searches()
+        for word in ["swift cc", "swift aa", "swift bb"] { searches.record(word, now: now) }
+        #expect(keys(searches.suggestions(for: "swift", template: google, now: now))
+            == ["swift aa", "swift bb", "swift cc"])
+    }
+
     @Test func exactlyWhatWasTypedIsNotOfferedBack() {
         var searches = Searches()
         searches.record("swift", now: now)
@@ -113,6 +120,29 @@ struct SearchesTests {
         try searches.save(to: file, now: now)
         let read = try Searches.load(from: file)
         #expect(read == searches)
+    }
+
+    @Test func loadedRowsAreValidatedBeforeTheyCanBeOffered() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let rows = [
+            Searches.Asked(words: "  Swift  charts  ", count: 2, last: now),
+            Searches.Asked(words: "Summer2024", count: 1, last: now),
+            Searches.Asked(words: "swift invalid", count: -1, last: now),
+        ]
+        try JSONEncoder().encode(rows).write(to: file)
+        let read = try Searches.load(from: file)
+        #expect(read.count == 1)
+        #expect(read.suggestions(for: "swift", template: google, now: now).first?.key == "Swift charts")
+    }
+
+    @Test func recordingDoesNotOverflowACountFromDisk() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try JSONEncoder().encode([Searches.Asked(words: "swift charts", count: Int.max, last: now)]).write(to: file)
+        var read = try Searches.load(from: file)
+        read.record("swift charts", now: now)
+        #expect(read.count == 1)
     }
 
     @Test func noFileIsNoSearches() throws {

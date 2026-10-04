@@ -60,6 +60,23 @@ struct HistoryStoreSearchesTests {
         #expect(try Data(contentsOf: file) == bytes)
     }
 
+    @Test func aFailedSearchReadCanRetryWithoutLosingNewSearches() async throws {
+        defer { clean() }
+        var before = Searches()
+        before.record("swift charts")
+        try before.save(to: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: file.path)
+        let history = store()
+        history.searched("swift before")
+        await history.load()
+        history.searched("swift after")
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+        await history.load()
+        await history.flush()
+        #expect(history.searches.count == 3)
+        #expect(try Searches.load(from: file).count == 3)
+    }
+
     @Test func aSeededHistoryNeverTouchesTheFile() async throws {
         defer { clean() }
         let history = store(seed: 10)
