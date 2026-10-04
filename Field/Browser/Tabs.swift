@@ -190,6 +190,14 @@ import os
         if let stage { stage.switchTab(by: step) } else if let tab = neighbour(by: step) { select(tab) }
     }
 
+    /// A swipe on the bar has set off `step` tabs along (0 for back where
+    /// it was): the bar says that tab's host from now, as Go does, not once
+    /// the spring has landed. A tab with no address yet (a popup still on
+    /// its way) leaves what's there.
+    func heading(by step: Int) {
+        arriving = step == 0 ? nil : neighbour(by: step)?.url ?? arriving
+    }
+
     // MARK: - the list
 
     /// Puts `tab` on screen, as far as the list goes; the Stage places its

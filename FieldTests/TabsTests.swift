@@ -82,6 +82,20 @@ struct TabsTests {
         #expect(t.current.url?.absoluteString == "https://popup.example/")
     }
 
+    /// A swipe on the bar that sets off for a neighbour has the bar say that
+    /// neighbour's host at once, not when the spring lands; turned back, or
+    /// landed, it says the tab on screen (bar-polish B-02).
+    @Test func aSwipeSaysWhereItsGoingUntilItLands() {
+        let t = tabs(Session.Shape(tabs: [entry("https://a.com/"), entry("https://b.com/")], active: 0))
+        t.heading(by: 1)
+        #expect(t.arriving?.absoluteString == "https://b.com/")
+        t.heading(by: 0)
+        #expect(t.arriving == nil)
+        t.heading(by: 1)
+        t.select(t.all[1])
+        #expect(t.arriving == nil)
+    }
+
     /// Groups come back from the session, and go back into it, with each
     /// tab's group and when it was last seen.
     @Test func groupsRoundTripThroughTheSession() {

@@ -900,6 +900,11 @@ final class CriticServer: @unchecked Sendable {
     }
 
     private static func respond(on connection: NWConnection, path: String) {
+        // `/slow/<path>`: the same page, 1.5 s late, so the bar's ring has time to show.
+        if path.hasPrefix("/slow/") {
+            queue.asyncAfter(deadline: .now() + 1.5) { respond(on: connection, path: String(path.dropFirst(5))) }
+            return
+        }
         let (status, type, body): (String, String, Data) = switch path {
         case "/article":
             ("200 OK", "text/html; charset=utf-8", Data(Article.html.replacingOccurrences(of: "<body>", with: "<body>" + CriticTour.heartbeat).utf8))
