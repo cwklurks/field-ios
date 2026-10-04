@@ -41,7 +41,8 @@ struct SuggestGateTests {
 
     @Test(arguments: [
         "github.com", "github.com/apple/swift", "https://example.com/a?b=c", "localhost:3000",
-        "192.168.1.1", "printer.local", "about:blank", "www.exa", "news.ycombinator.com",
+        "192.168.1.1", "printer.local", "example.", "example.c", "http:", "http:/",
+        "https://", "[::1]", "intranet/path", "ftp://server", "find example.com", "name@host", "about:blank", "www.exa", "news.ycombinator.com",
     ])
     func anAddressIsNeverSent(typed: String) {
         #expect(request(typed) == nil)
@@ -57,7 +58,7 @@ struct SuggestGateTests {
         "3f786850e387550fdab836ed7e6dc881de23001b",
         "aGVsbG8gd29ybGQgdGhpcyBpcyBiYXNlNjQ",
         // Something that reads as a password.
-        "Tr0ub4dor&3", "hunter2!Pass", "password: letmein", "my pwd is hunter2", "api_key=abc123",
+        "Summer2024", "Tr0ub4dor&3", "hunter2!Pass", "password: letmein", "my pwd is hunter2", "api_key=abc123",
         // Numbers that are someone's: a card, a phone, a social security number.
         "4111 1111 1111 1111", "4111-1111-1111-1111", "(555) 123-4567", "123-45-6789",
         // An email address, which is half a sign-in.

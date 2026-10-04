@@ -11,14 +11,19 @@ import FieldKit
     actor Network: SuggestFetching {
         var asked: [String] = []
         let delays: [String: Duration]
+        let failing: Bool
 
-        init(delays: [String: Duration] = [:]) { self.delays = delays }
+        init(delays: [String: Duration] = [:], failing: Bool = false) {
+            self.delays = delays
+            self.failing = failing
+        }
 
         func data(for url: URL) async throws -> Data {
             let words = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "q" }?.value ?? ""
             asked.append(words)
             try await Task.sleep(for: delays[words] ?? .zero)
+            if failing { throw URLError(.timedOut) }
             return Data(#"["\#(words)",["\#(words)one","\#(words) two","\#(words) three"]]"#.utf8)
         }
     }
@@ -166,18 +171,78 @@ import FieldKit
         #expect(!box.offers.isEmpty)
     }
 
-    @Test func typingOnKeepsTheRowsThatStillFit() async throws {
-        let network = Network(delays: ["goat c": .seconds(5)])
-        let box = omnibox(network)
+    @Test func typingOnNeverReusesAnOldEngineAnswer() async throws {
+        let box = omnibox(Network(delays: ["goat ": .seconds(5)]))
         type("goat", into: box)
         try await settle()
-        #expect(box.offers.map(\.key) == ["goatone", "goat two", "goat three"])
+        #expect(!box.offers.isEmpty)
         type("goat ", into: box)
-        // Only "goat two" and "goat three" carry on from "goat ".
-        #expect(box.offers.map(\.key) == ["goat two", "goat three"])
-        type("goat c", into: box)
-        #expect(box.offers.isEmpty)
-        type("goat", into: box, cause: .deleted)
+        #expect(box.offers.allSatisfy { $0.kind != .search })
+        box.ended()
+    }
+
+    @Test func outgoingLocalRowsWaitForTheAnswerWithoutShrinking() async throws {
+        history.searched("swift concurrency")
+        history.visited(URL(string: "https://swift.org")!, title: "Swift")
+        let box = omnibox(Network(delays: ["swift c": .milliseconds(50)]))
+        type("swift", into: box)
+        #expect(box.offers.count == 2)
+        type("swift c", into: box)
+        #expect(box.offers.count == 2)
+        #expect(box.offers.first?.key == "swift concurrency")
+        try await settle()
+        #expect(box.offers.count == 4)
+        #expect(!box.offers.contains { $0.key == "swift.org" })
+    }
+
+    @Test func aFailedAnswerReleasesOutgoingLocalRows() async throws {
+        history.searched("swift concurrency")
+        history.visited(URL(string: "https://swift.org")!, title: "Swift")
+        let box = omnibox(Network(failing: true))
+        type("swift", into: box)
+        type("swift c", into: box)
+        #expect(box.offers.count == 2)
+        try await settle()
+        #expect(box.offers.map(\.key) == ["swift concurrency"])
+    }
+
+    @Test func changingEnginesDuringTheDebounceDoesNotAskTheOldOne() async throws {
+        let network = Network()
+        let box = Omnibox(initial: nil, history: history, defaults: defaults, privately: { false },
+                          suggester: Suggester(fetch: network, wait: .milliseconds(80)))
+        type("goat cheese", into: box)
+        defaults.set(Engine.duckduckgo.rawValue, forKey: "engine")
+        try await settle()
+        #expect(await network.asked.isEmpty)
+    }
+
+    @Test func disablingDuringTheDebounceSendsNothing() async throws {
+        let network = Network()
+        let box = Omnibox(initial: nil, history: history, defaults: defaults, privately: { false },
+                          suggester: Suggester(fetch: network, wait: .milliseconds(80)))
+        type("goat cheese", into: box)
+        defaults.set(false, forKey: Suggest.defaultsKey)
+        try await settle()
+        #expect(await network.asked.isEmpty)
+    }
+
+    @Test func goingPrivateDuringTheDebounceSendsNothing() async throws {
+        let network = Network()
+        var privately = false
+        let box = Omnibox(initial: nil, history: history, defaults: defaults, privately: { privately },
+                          suggester: Suggester(fetch: network, wait: .milliseconds(80)))
+        type("goat cheese", into: box)
+        privately = true
+        try await settle()
+        #expect(await network.asked.isEmpty)
+    }
+
+    @Test func disablingWhileAnAnswerIsInFlightDropsIt() async throws {
+        let box = omnibox(Network(delays: ["goat cheese": .milliseconds(80)]))
+        type("goat cheese", into: box)
+        try await Task.sleep(for: .milliseconds(20))
+        defaults.set(false, forKey: Suggest.defaultsKey)
+        try await settle()
         #expect(box.offers.isEmpty)
     }
 

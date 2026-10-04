@@ -26,7 +26,17 @@ public enum Suggest {
 
     /// Words fit to be sent anywhere, or kept: neither an address nor a secret.
     static func mayLeave(_ words: String) -> Bool {
-        words.count >= 2 && words.count <= longest && Address.url(from: words) == nil && !looksSecret(words)
+        words.count >= 2 && words.count <= longest && !looksAddressLike(words) && !looksSecret(words)
+    }
+
+    /// A partial address is still an address. Check each token too, so a
+    /// pasted URL beside words does not become a suggestion request.
+    private static func looksAddressLike(_ words: String) -> Bool {
+        words.split(separator: " ").contains { token in
+            token.contains { ".:/@\\?#[]".contains($0) }
+                || token.lowercased() == "localhost"
+                || Address.url(from: String(token)) != nil
+        }
     }
 
     /// Spaces round and runs of them inside taken out.
@@ -78,8 +88,8 @@ public enum Suggest {
         return token.contains(where: \.isNumber) || token.dropFirst().contains(where: \.isUppercase)
     }
 
-    /// Small and large letters, digits and symbols, mixed the way a password
-    /// is asked to be: all four, or three over a long stretch.
+    /// Mixed-case words with digits, or other long mixtures of character
+    /// classes. This errs toward withholding a password-shaped word.
     private static func isPasswordLike(_ token: Substring) -> Bool {
         guard token.count >= 8 else { return false }
         let kinds = [
@@ -88,7 +98,9 @@ public enum Suggest {
             token.contains(where: \.isNumber),
             token.contains { !$0.isLetter && !$0.isNumber },
         ].filter { $0 }.count
-        return kinds == 4 || (kinds == 3 && token.count >= 14)
+        let mixedLettersAndDigits = token.contains(where: \.isLowercase)
+            && token.contains(where: \.isUppercase) && token.contains(where: \.isNumber)
+        return kinds == 4 || (kinds == 3 && (token.count >= 14 || mixedLettersAndDigits))
     }
 
     /// The most digits in a row, counting across the spaces, dashes, dots

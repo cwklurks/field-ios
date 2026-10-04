@@ -62,22 +62,6 @@ public enum Offers {
         return rows
     }
 
-    /// The engine's rows for what was `asked`, while the answer for what is
-    /// now `typed` is on its way. Typing on keeps those that still carry on
-    /// from it, which are as true of the new words as of the old; anything
-    /// else (a letter taken off, other words) clears them.
-    public static func kept(_ shown: [Suggestion], asked: String, typed: String, near: [Suggestion] = []) -> [Suggestion] {
-        let old = asked.lowercased()
-        let new = typed.lowercased()
-        guard !new.isEmpty, new.count > old.count, new.hasPrefix(old) else { return [] }
-        let taken = Set(near.map(\.id))
-        let typedID = "?" + Suggest.tidy(typed).lowercased()
-        return shown
-            .filter { $0.key.lowercased().hasPrefix(new) && $0.id != typedID && !taken.contains($0.id) }
-            .prefix(room(near))
-            .map { $0 }
-    }
-
     private static func room(_ near: [Suggestion]) -> Int {
         max(0, min(farLimit, allLimit - near.count))
     }

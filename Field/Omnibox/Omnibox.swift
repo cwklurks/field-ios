@@ -41,7 +41,9 @@ import Observation
     /// The rows from the phone, and the engine's beyond them.
     @ObservationIgnored private var near: [Suggestion] = []
     @ObservationIgnored private var far: [Suggestion] = []
-    /// What was typed when the engine's rows were last asked for or kept.
+    /// Local rows waiting to leave when the current answer is ready.
+    @ObservationIgnored private var outgoing: [Suggestion] = []
+    /// What was typed when the engine's rows were last asked for.
     @ObservationIgnored private var asked = ""
 
     /// The page the field opened on, while it still stands for it.
@@ -74,14 +76,21 @@ import Observation
         let request = Suggest.request(
             for: text, engine: engine, privately: privately(), enabled: suggesting, near: list
         )
+        let current = Set(list.map(\.id))
+        outgoing = request == nil ? [] : (near + outgoing).filter { !current.contains($0.id) }
+        outgoing = Array(outgoing.prefix(max(0, Offers.nearLimit - list.count)))
         near = list
-        // The engine's rows for the last words, while it's asked about these.
-        far = request == nil ? [] : Offers.kept(far, asked: asked, typed: text, near: list)
+        // Only local rows can wait. An engine answer belongs to one query.
+        far = []
         asked = text
         publish()
         if picked != draft.match?.id { picked = draft.match?.id }
         if refused { refused = false }
-        suggester.ask(request) { [weak self] words in self?.answered(words, for: text) }
+        suggester.ask(request, allowed: { [weak self] in
+            guard let self else { return false }
+            return Suggest.request(for: text, engine: self.engine, privately: self.privately(),
+                                   enabled: self.suggesting, near: list) == request
+        }) { [weak self] words in self?.answered(words, for: text) }
         return draft
     }
 
@@ -149,6 +158,7 @@ import Observation
     /// checks again.
     private func answered(_ words: [String], for text: String) {
         guard text == asked else { return }
+        outgoing = []
         far = Offers.remote(words, typed: text, near: near, template: template)
         guard publish() else { return }
         onLate()
@@ -157,7 +167,7 @@ import Observation
     /// Written only when they change: each write redraws whoever reads it.
     @discardableResult
     private func publish() -> Bool {
-        let all = near + far
+        let all = near + outgoing + far
         guard offers != all else { return false }
         offers = all
         if listed == all.isEmpty { listed = !all.isEmpty }

@@ -11,19 +11,21 @@ struct SuggesterTests {
         var asked: [URL] = []
         let delays: [String: Duration]
         let failing: Bool
+        let echo: String?
 
-        init(delays: [String: Duration] = [:], failing: Bool = false) {
+        init(delays: [String: Duration] = [:], failing: Bool = false, echo: String? = nil) {
             self.delays = delays
             self.failing = failing
+            self.echo = echo
         }
 
         func data(for url: URL) async throws -> Data {
             asked.append(url)
             let words = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "q" }?.value ?? ""
-            try await Task.sleep(for: delays[words] ?? .zero)
+            try? await Task.sleep(for: delays[words] ?? .zero)
             if failing { throw URLError(.timedOut) }
-            return Data(#"["\#(words)",["\#(words) one","\#(words) two"]]"#.utf8)
+            return Data(#"["\#(echo ?? words)",["\#(words) one","\#(words) two"]]"#.utf8)
         }
     }
 
@@ -99,7 +101,7 @@ struct SuggesterTests {
         suggester.ask(url("swift")) { inbox.got.append($0) }
         try await Task.sleep(for: .milliseconds(200))
         #expect(await fake.asked.count == 1)
-        #expect(inbox.got.isEmpty)
+        #expect(inbox.got == [[]])
     }
 
     @Test func goneIsGone() async throws {
@@ -111,6 +113,14 @@ struct SuggesterTests {
         suggester = nil
         try await Task.sleep(for: .milliseconds(300))
         #expect(inbox.got.isEmpty)
+    }
+
+    @Test func anAnswerForADifferentQueryIsRejected() async throws {
+        let suggester = Suggester(fetch: Fake(echo: "old query"), wait: .zero)
+        let inbox = Inbox()
+        suggester.ask(url("swift")) { inbox.got.append($0) }
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(inbox.got == [[]])
     }
 
     // MARK: - the session
@@ -135,5 +145,7 @@ struct SuggesterTests {
         #expect(request.value(forHTTPHeaderField: "Cookie") == nil)
         #expect(request.cachePolicy == .reloadIgnoringLocalAndRemoteCacheData)
         #expect(request.httpMethod == "GET")
+        #expect(request.value(forHTTPHeaderField: "User-Agent") == "Mozilla/5.0")
+        #expect(request.value(forHTTPHeaderField: "Accept-Language") == "en")
     }
 }

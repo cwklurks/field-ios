@@ -44,6 +44,12 @@ struct SuggestResponseTests {
         #expect(SuggestResponse.words(from: Data(body.utf8)).isEmpty)
     }
 
+    @Test func anEngineMayLowercaseTheEchoedQuery() {
+        let body = Data(#"["swift c",["swift charts"]]"#.utf8)
+        #expect(SuggestResponse.words(from: body, for: "Swift C") == ["swift charts"])
+        #expect(SuggestResponse.words(from: body, for: "rust").isEmpty)
+    }
+
     @Test func onlyStringsAreKeptAndTidied() {
         let body = #"["q",["  swift  concurrency ", 7, null, "", "   ", {"a":1}, "swift"]]"#
         #expect(SuggestResponse.words(from: Data(body.utf8)) == ["swift concurrency", "swift"])
@@ -56,7 +62,7 @@ struct SuggestResponseTests {
     }
 
     @Test func controlCharactersAreDropped() {
-        let body = #"["q",["a\nb","ok"]]"#
+        let body = #"["q",["a\nb","a\u202Eb","ok"]]"#
         #expect(SuggestResponse.words(from: Data(body.utf8)) == ["ok"])
     }
 

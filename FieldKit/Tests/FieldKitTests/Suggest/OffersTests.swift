@@ -135,23 +135,4 @@ struct OffersTests {
         #expect(searched("Swift").id == Offers.remote(["swift"], typed: "s", near: [], template: google).first?.id)
     }
 
-    // MARK: - while the next answer is on its way
-
-    @Test func typingOnKeepsWhatStillFits() {
-        let shown = Offers.remote(["swift concurrency", "swift charts", "swiftui"], typed: "swi", near: [], template: google)
-        #expect(keys(Offers.kept(shown, asked: "swi", typed: "swift c")) == ["swift concurrency", "swift charts"])
-    }
-
-    @Test func anythingButTypingOnClearsThem() {
-        let shown = Offers.remote(["swift concurrency", "swift charts"], typed: "swift", near: [], template: google)
-        // A letter taken off, a different word, the field emptied.
-        #expect(Offers.kept(shown, asked: "swift", typed: "swif").isEmpty)
-        #expect(Offers.kept(shown, asked: "swift", typed: "rust").isEmpty)
-        #expect(Offers.kept(shown, asked: "swift", typed: "").isEmpty)
-    }
-
-    @Test func whatWouldBeTheTypedTextItselfGoes() {
-        let shown = Offers.remote(["swift concurrency", "swift c"], typed: "swift", near: [], template: google)
-        #expect(keys(Offers.kept(shown, asked: "swift", typed: "swift c")) == ["swift concurrency"])
-    }
 }
