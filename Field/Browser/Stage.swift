@@ -392,6 +392,8 @@ final class Stage: UIView {
             self.animator = nil
             endInterval()
             offset = page.transform.tx
+            // Caught by the finger: the tab on screen is still this one.
+            tabs.heading(by: 0)
         } else if animator != nil {
             return
         } else {
@@ -429,6 +431,11 @@ final class Stage: UIView {
     private func settle(_ step: Int, velocity: CGFloat) {
         let target = -CGFloat(step) * (bounds.width + Swipe.pageGap)
         beginInterval("tab.switch")
+        // The bar says where the page is going as it sets off, and grows
+        // back from the pill alongside it: one motion, not a second one
+        // once the spring's long tail has landed (bar-polish B-02).
+        tabs.heading(by: step)
+        if step != 0 { bar.expand() }
         let speed = Swipe.relative(velocity: velocity, from: offset, to: target)
         let animator = Stage.glide(velocity: speed)
         animator.addAnimations { [weak self] in self?.slide(to: target) }
