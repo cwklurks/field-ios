@@ -128,7 +128,7 @@ final class BarContent: UIView {
     /// What the tab says now.
     func show(url: URL?, loading: Bool, canGoBack: Bool, canGoForward: Bool) {
         say(url)
-        ring.isHidden = !loading
+        ring.loading = loading
         self.canGoBack = canGoBack
         back.isEnabled = canGoBack || canGoForward
         paint()
@@ -237,12 +237,26 @@ final class RingView: UIView {
     var colour: UIColor = Palette.UI.muted {
         didSet { paint() }
     }
+    /// In and out on the quick fade, beside an address that may be moving:
+    /// a blink drew the eye, and a load that stops and starts again at once
+    /// (a redirect) blinked it twice.
+    var loading = false {
+        didSet {
+            guard loading != oldValue else { return }
+            if loading { isHidden = false }
+            SurfaceMotion.animate(.quick) { self.alpha = self.loading ? 1 : 0 } completion: { [weak self] _ in
+                guard let self, !loading else { return }
+                isHidden = true
+            }
+        }
+    }
     private let shape = CAShapeLayer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         isHidden = true
+        alpha = 0
         shape.fillColor = nil
         shape.lineWidth = 1.4
         shape.lineCap = .round
