@@ -46,18 +46,28 @@ enum TidySheets {
     /// "Add similar tabs" to `group`, which has `members`, from `loose`.
     static func showSimilar(to group: Session.Group, members: [TabInfo], among loose: [TabInfo],
                             flow: TidyFlow, engine: TidyEngine = .shared) {
+        guard host?.presentingViewController == nil, let presenter = top else { return }
+        reading?.cancel()
+        flow.announce("Looking for similar tabs…")
         let draft = TidyDraft(tabs: members + loose, mode: .similar(group: group.id, name: group.name))
-        guard present(draft, flow: flow) else { return }
-        reading = Task {
+        reading = Task { [weak presenter] in
             let found = await engine.similar(named: group.name, members: members, among: loose)
             guard !Task.isCancelled else { return }
-            // Nothing to show: a toast says it, not a sheet with a dead Add.
-            guard found.contains(where: { draft.info[$0] != nil }) else {
-                host?.dismiss(animated: true)
+            reading = nil
+            guard let presenter, top === presenter, presenter.viewIfLoaded?.window != nil,
+                  !presenter.isBeingDismissed else { return }
+            draft.receiveSimilar(found)
+            guard draft.canApply else {
                 return flow.announce("No other tabs look like these.")
             }
-            withAnimation(Motion.calm(Motion.settle)) { draft.receiveSimilar(found) }
+            present(draft, flow: flow)
         }
+    }
+
+    /// Leaving the grid also leaves any lookup still running.
+    static func cancelReading() {
+        reading?.cancel()
+        reading = nil
     }
 
     /// The stale tabs' review: `tabs` checked, Close closes the checked ones.

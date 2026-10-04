@@ -32,9 +32,7 @@ struct PrivateSettingsSection: View {
                 .ramp(.caption).foregroundStyle(Palette.muted)
             Text("Wipe when away for").ramp(.caption).foregroundStyle(Palette.muted).padding(.top, 8)
             Segmented(options: PrivateSettings.wipeChoices.map { ($0, Self.title($0)) }, selection: $wipeAfter)
-            // Presented from UIKit, as from Private's own page, never as a
-            // sheet inside this ScrollView: a sheet here rebuilt the scrolled
-            // list and lost its place (polish-6, P6-10).
+            // Use the same presenter as Private's welcome page.
             Button(action: PrivateLimits.present) {
                 HStack {
                     Text("What Private can't do").ramp(.row)

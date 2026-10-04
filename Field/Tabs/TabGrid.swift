@@ -185,6 +185,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     /// before it comes back, so the two are never both on screen. `now`, it
     /// goes in the frame the bar takes its place.
     func showRow(_ shown: Bool, now: Bool = false) {
+        if !shown { TidySheets.cancelReading() }
         row.layer.removeAllAnimations()
         banner?.layer.removeAllAnimations()
         for view in row.subviews { view.alpha = 1 }
@@ -216,6 +217,7 @@ final class TabGrid: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
 
     /// The strip's progress, inside its animation: the lift moves with it.
     func privateProgress(_ p: CGFloat) {
+        if p > 0 { TidySheets.cancelReading() }
         count.progress = p
         count.layoutIfNeeded()
     }
