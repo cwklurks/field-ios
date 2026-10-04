@@ -146,6 +146,28 @@ final class SuggestTour: XCTestCase {
         shoot("largest-text-air")
     }
 
+    @MainActor func testCappedRowsAreAbsentFromAccessibility() throws {
+        let app = Harness.app()
+        app.launchArguments += ["-FieldSuggestionFixture"]
+        app.launch()
+        XCTAssertTrue(app.element("suggestion.0").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.element("suggestion.1").exists)
+        XCTAssertFalse(app.element("suggestion.2").exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "suggestion.fill").count, 2)
+        app.buttons["Expand"].tap()
+        XCTAssertTrue(app.element("suggestion.2").waitForExistence(timeout: 2))
+        XCTAssertEqual(app.buttons.matching(identifier: "suggestion.fill").count, 3)
+        app.buttons["Cap"].tap()
+        XCTAssertTrue(app.element("suggestion.2").waitForNonExistence(timeout: 2))
+        XCTAssertEqual(app.buttons.matching(identifier: "suggestion.fill").count, 2)
+        app.buttons["Change query"].tap()
+        // Old rows still occupy the panel, but expose no actions.
+        XCTAssertTrue(app.element("suggestions").exists)
+        XCTAssertTrue(app.element("suggestion.0").waitForNonExistence(timeout: 2))
+        XCTAssertFalse(app.element("suggestion.1").exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "suggestion.fill").count, 0)
+    }
+
     private func shoot(_ name: String) {
         guard let folder = ProcessInfo.processInfo.environment["SUGGEST_SHOTS"] else { return }
         try? XCUIScreen.main.screenshot().pngRepresentation

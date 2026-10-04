@@ -39,26 +39,25 @@ struct Suggestions: View {
                         let picked = omnibox.picked == offer.id
                         let fading = omnibox.fading.contains(offer.id)
                         Button {
-                            omnibox.chose(offer)
-                            onGo(offer.url)
+                            if omnibox.chose(offer) { onGo(offer.url) }
                         } label: {
                             Row(offer: offer, picked: picked).equatable()
                         }
-                        .buttonStyle(Press(picked: picked, onPress: omnibox.pressed))
+                        .buttonStyle(Press(picked: picked, onPress: { omnibox.pressed($0, id: "row:" + offer.id) }))
                         // The row's own, before Fill stands over it, so Fill keeps its.
                         .accessibilityIdentifier("suggestion.\(index)")
                         .overlay(alignment: .trailing) {
                             if offer.isWords {
-                                Fill(words: offer.key, onPress: omnibox.pressed) { omnibox.fill(offer) }
+                                Fill(words: offer.key, onPress: { omnibox.pressed($0, id: "fill:" + offer.id) }) { omnibox.fill(offer) }
                             }
                         }
                         // Left by the last keystroke: holding its place until
                         // the answer comes, and no answer to what is typed now.
                         .animation(Motion.quick) { $0.opacity(fading ? 0.4 : 1) }
-                        .allowsHitTesting(!fading)
-                        .accessibilityHidden(fading)
+                        .modifier(CappedRow(fading: fading))
                     }
                 }
+                .coordinateSpace(name: "suggestionRows")
                 .padding(6)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("suggestions")
@@ -68,6 +67,25 @@ struct Suggestions: View {
                     .frame(height: 1)
             }
         }
+    }
+}
+
+/// Layout keeps dropped rows alive for stable identity. Offscreen placement
+/// alone does not remove their buttons from the accessibility tree.
+private struct CappedRow: ViewModifier {
+    let fading: Bool
+    @State private var placed = false
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: Bool.self) { geometry in
+                // Allow subpixel rounding at the first kept row's origin.
+                geometry.frame(in: .named("suggestionRows")).minY >= -1
+            } action: { placed = $0 }
+            .allowsHitTesting(placed && !fading)
+            .accessibilityRepresentation {
+                if placed && !fading { content }
+            }
     }
 }
 
@@ -234,6 +252,7 @@ private struct Press: ButtonStyle {
                 }
             }
             .onChange(of: configuration.isPressed) { _, down in onPress(down) }
+            .onDisappear { onPress(false) }
     }
 }
 
@@ -272,6 +291,7 @@ private struct Fill: View {
                     }
                 }
                 .onChange(of: configuration.isPressed) { _, down in onPress(down) }
+                .onDisappear { onPress(false) }
         }
     }
 }

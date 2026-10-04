@@ -55,7 +55,9 @@ import Observation
     @ObservationIgnored private var waiting: Task<Void, Never>?
     /// Fingers on rows. Until the last lifts, nothing that arrives late
     /// changes the rows, so the one under a finger is the one it takes.
-    @ObservationIgnored private var touching = 0
+    @ObservationIgnored private var touching: Set<String> = []
+    @ObservationIgnored private var closed = false
+    @ObservationIgnored private var requested: URL?
     /// What was typed when the engine's rows were last asked for.
     @ObservationIgnored private var asked = ""
 
@@ -79,6 +81,7 @@ import Observation
     /// UIKit has changed the text. Returns what the field should hold now.
     func edited(to text: String, selection: Range<Int>, marked: Bool, cause: Draft.Cause) -> Draft {
         touched = true
+        closed = false
         // Asked of what was typed, before anything is finished for it.
         let list = Offers.merge(
             places: history.suggestions(for: text),
@@ -103,7 +106,8 @@ import Observation
         far = []
         asked = text
         // A keystroke is never held: the field changed under the finger too.
-        touching = 0
+        touching.removeAll()
+        requested = request
         publish()
         wait(for: text)
         if picked != draft.match?.id { picked = draft.match?.id }
@@ -142,27 +146,45 @@ import Observation
     }
 
     /// A row tapped: the field goes there next.
-    func chose(_ offer: Suggestion) {
+    @discardableResult
+    func chose(_ offer: Suggestion) -> Bool {
+        guard accepts(offer) else { return false }
         suggester.stop()
         remember(offer)
+        return true
     }
 
     /// A search's words into the field, without going.
     func fill(_ offer: Suggestion) {
+        guard accepts(offer) else { return }
         onFill(offer.key)
+    }
+
+    /// A queued touch or accessibility action may outlive the row's query.
+    private func accepts(_ offer: Suggestion) -> Bool {
+        guard !closed, !fading.contains(offer.id), offers.contains(offer) else { return false }
+        return offer.kind != .search || requestStillAllowed
+    }
+
+    private var requestStillAllowed: Bool {
+        requested == Suggest.request(for: asked, engine: engine, privately: privately(),
+                                     enabled: suggesting, near: near)
     }
 
     /// The field closed: nothing more is to be sent.
     func ended() {
         suggester.stop()
         waiting?.cancel()
+        touching.removeAll()
+        closed = true
     }
 
     /// A finger came down on a row, or lifted, or slid off. What arrived
     /// while it was down is shown when the last one lifts.
-    func pressed(_ down: Bool) {
-        touching = max(0, touching + (down ? 1 : -1))
-        guard touching == 0, publish() else { return }
+    func pressed(_ down: Bool, id: String) {
+        guard !closed else { return }
+        if down { touching.insert(id) } else { touching.remove(id) }
+        guard touching.isEmpty, publish() else { return }
         onLate()
     }
 
@@ -202,6 +224,7 @@ import Observation
         waiting = Task { [weak self, patience] in
             try? await Task.sleep(for: patience)
             guard !Task.isCancelled, let self, text == self.asked else { return }
+            self.suggester.stop()
             self.outgoing = []
             self.late()
         }
@@ -209,13 +232,18 @@ import Observation
 
     /// A change no keystroke made, shown unless a finger is on a row.
     private func late() {
-        guard touching == 0, publish() else { return }
+        guard touching.isEmpty, publish() else { return }
         onLate()
     }
 
     /// Written only when they change: each write redraws whoever reads it.
     @discardableResult
     private func publish() -> Bool {
+        // Delivery may have waited under a finger while privacy or the engine changed.
+        if !requestStillAllowed {
+            outgoing = []
+            far = []
+        }
         let all = near + outgoing + far
         let gone = Set(outgoing.map(\.id))
         if fading != gone { fading = gone }

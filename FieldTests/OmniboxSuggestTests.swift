@@ -91,19 +91,27 @@ import FieldKit
         #expect(history.searches.isEmpty)
     }
 
-    @Test func aTappedSearchIsRemembered() {
+    @Test func aTappedSearchIsRemembered() async throws {
         let box = omnibox()
-        let row = Suggestion(key: "swift charts", title: "", url: URL(string: "https://www.google.com/search?q=swift%20charts")!, kind: .search)
-        box.chose(row)
+        type("goat cheese", into: box)
+        try await settle()
+        let row = try #require(box.offers.first { $0.kind == .search })
+        #expect(box.chose(row))
         #expect(!history.searches.isEmpty)
     }
 
-    @Test func privateRemembersNothing() {
+    @Test func privateRemembersNothing() throws {
         let box = omnibox(privately: true)
         type("swift concurrency", into: box)
         _ = box.submit()
-        box.chose(Suggestion(key: "swift charts", title: "", url: URL(string: "https://www.google.com/search?q=swift%20charts")!, kind: .search))
         #expect(history.searches.isEmpty)
+
+        history.searched("swift charts")
+        let before = history.searches
+        type("swift ch", into: box)
+        let row = try #require(box.offers.first { $0.kind == .searched })
+        #expect(box.chose(row))
+        #expect(history.searches == before)
     }
 
     // MARK: - the engine's suggestions
@@ -272,7 +280,9 @@ import FieldKit
         let box = omnibox()
         var filled: [String] = []
         box.onFill = { filled.append($0) }
-        box.fill(Suggestion(key: "goat cheese", title: "", url: URL(string: "https://www.google.com/search?q=goat%20cheese")!, kind: .search))
+        history.searched("goat cheese")
+        type("goat", into: box)
+        box.fill(box.offers[0])
         #expect(filled == ["goat cheese"])
     }
 

@@ -60,12 +60,12 @@ import FieldKit
         let under = box.offers
         #expect(under.map(\.key) == ["goat curry"])
 
-        box.pressed(true)
+        box.pressed(true, id: "row")
         try await settle()
         #expect(box.offers == under)
         #expect(late == 0)
 
-        box.pressed(false)
+        box.pressed(false, id: "row")
         #expect(box.offers.first == under.first)
         #expect(box.offers.count == 4)
         #expect(late == 1)
@@ -75,12 +75,12 @@ import FieldKit
         history.searched("goat curry")
         let box = omnibox(Network(delays: ["goat": .milliseconds(30)]))
         type("goat", into: box)
-        box.pressed(true)
-        box.pressed(true)  // Fill and its row, say.
+        box.pressed(true, id: "row")
+        box.pressed(true, id: "fill")  // Fill and its row, say.
         try await settle()
-        box.pressed(false)
+        box.pressed(false, id: "fill")
         #expect(box.offers.count == 1)
-        box.pressed(false)
+        box.pressed(false, id: "row")
         #expect(box.offers.count == 4)
     }
 
@@ -88,7 +88,7 @@ import FieldKit
         history.searched("goat curry")
         let box = omnibox(Network(delays: ["goat": .seconds(5)]))
         type("goat", into: box)
-        box.pressed(true)
+        box.pressed(true, id: "row")
         type("goat cu", into: box)
         #expect(box.offers.map(\.key) == ["goat curry"])
         box.ended()
@@ -161,11 +161,104 @@ import FieldKit
         try await settle()
         type("goat c", into: box)
         let held = box.offers
-        box.pressed(true)
+        box.pressed(true, id: "row")
         try await settle()
         #expect(box.offers == held)
-        box.pressed(false)
+        box.pressed(false, id: "row")
         #expect(box.offers.map(\.key) == ["goat curry"])
+        box.ended()
+    }
+
+    @Test func anAnswerAfterTheHoldingDeadlineCannotRegrowThePanel() async throws {
+        let box = omnibox(Network(delays: ["goat c": .milliseconds(250)]), patience: .milliseconds(40))
+        type("goat", into: box)
+        try await settle()
+        type("goat c", into: box)
+        try await settle()
+        #expect(box.offers.isEmpty)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(box.offers.isEmpty)
+        box.ended()
+    }
+
+    @Test func aRepeatedDownDoesNotLeaveAPhantomFinger() async throws {
+        history.searched("goat curry")
+        let box = omnibox(Network(delays: ["goat": .milliseconds(30)]))
+        type("goat", into: box)
+        box.pressed(true, id: "row")
+        box.pressed(true, id: "row")
+        try await settle()
+        box.pressed(false, id: "row")
+        #expect(box.offers.count == 4)
+        box.ended()
+    }
+
+    @Test func releasingAfterTheFieldClosedCannotPublishAPendingAnswer() async throws {
+        history.searched("goat curry")
+        let box = omnibox(Network(delays: ["goat": .milliseconds(30)]))
+        type("goat", into: box)
+        box.pressed(true, id: "row")
+        try await settle()
+        var late = 0
+        box.onLate = { late += 1 }
+        box.ended()
+        box.pressed(false, id: "row")
+        #expect(late == 0)
+    }
+
+    @Test func disablingBeforeReleaseDiscardsTheHeldAnswer() async throws {
+        history.searched("goat curry")
+        let box = omnibox(Network(delays: ["goat": .milliseconds(30)]))
+        type("goat", into: box)
+        box.pressed(true, id: "row")
+        try await settle()
+        defaults.set(false, forKey: Suggest.defaultsKey)
+        box.pressed(false, id: "row")
+        #expect(box.offers.map(\.key) == ["goat curry"])
+        box.ended()
+    }
+
+    @Test func aQueuedActionCannotUseAnOutgoingAnswer() async throws {
+        let box = omnibox(Network(delays: ["rust": .seconds(5)]))
+        type("goat", into: box)
+        try await settle()
+        let old = try #require(box.offers.first)
+        var filled = false
+        box.onFill = { _ in filled = true }
+        type("rust", into: box)
+        box.fill(old)
+        box.chose(old)
+        #expect(!filled)
+        #expect(history.searches.isEmpty)
+        box.ended()
+    }
+
+    @Test func goingPrivateBeforeReleaseDiscardsTheHeldAnswer() async throws {
+        history.searched("goat curry")
+        var privately = false
+        let box = Omnibox(initial: nil, history: history, defaults: defaults, privately: { privately },
+                          suggester: Suggester(fetch: Network(), wait: .zero))
+        type("goat", into: box)
+        box.pressed(true, id: "row")
+        try await settle()
+        privately = true
+        box.pressed(false, id: "row")
+        #expect(box.offers.map(\.key) == ["goat curry"])
+        box.ended()
+    }
+
+    @Test func anOldReleaseCannotReleaseADifferentFingerAfterAnEdit() async throws {
+        history.searched("goat curry")
+        let box = omnibox()
+        type("goat", into: box)
+        box.pressed(true, id: "old")
+        type("goat c", into: box)
+        box.pressed(true, id: "new")
+        box.pressed(false, id: "old")
+        try await settle()
+        #expect(box.offers.count == 1)
+        box.pressed(false, id: "new")
+        #expect(box.offers.count == 4)
         box.ended()
     }
 }
