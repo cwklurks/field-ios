@@ -84,6 +84,13 @@ final class BarContent: UIView {
         address.addSubview(label)
         address.addSubview(ring)
         address.accessibilityIdentifier = "bar.address"
+        // The finger on the address: it dims at once, the frame after the
+        // touch, and is whole again however the finger leaves. A tap that
+        // opens the field hides it in the same turn, so that frame never
+        // shows it whole; one on the pill grows the bar with it whole.
+        address.addAction(UIAction { [weak self] _ in self?.address.alpha = 0.5 }, for: .touchDown)
+        address.addAction(UIAction { [weak self] _ in self?.address.alpha = 1 },
+                          for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
 
         count.text = "1"
         count.font = .systemFont(ofSize: UIFontMetrics(forTextStyle: .footnote).scaledValue(for: Ramp.label.size), weight: .medium)
@@ -121,7 +128,7 @@ final class BarContent: UIView {
     /// What the tab says now.
     func show(url: URL?, loading: Bool, canGoBack: Bool, canGoForward: Bool) {
         say(url)
-        ring.isHidden = !loading
+        ring.loading = loading
         self.canGoBack = canGoBack
         back.isEnabled = canGoBack || canGoForward
         paint()
@@ -230,12 +237,26 @@ final class RingView: UIView {
     var colour: UIColor = Palette.UI.muted {
         didSet { paint() }
     }
+    /// In and out on the quick fade, beside an address that may be moving:
+    /// a blink drew the eye, and a load that stops and starts again at once
+    /// (a redirect) blinked it twice.
+    var loading = false {
+        didSet {
+            guard loading != oldValue else { return }
+            if loading { isHidden = false }
+            SurfaceMotion.animate(.quick) { self.alpha = self.loading ? 1 : 0 } completion: { [weak self] _ in
+                guard let self, !loading else { return }
+                isHidden = true
+            }
+        }
+    }
     private let shape = CAShapeLayer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         isHidden = true
+        alpha = 0
         shape.fillColor = nil
         shape.lineWidth = 1.4
         shape.lineCap = .round

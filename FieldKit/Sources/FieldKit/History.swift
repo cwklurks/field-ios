@@ -21,11 +21,18 @@ public struct Suggestion: Identifiable, Equatable, Sendable {
         case visited
         /// One of the well-known addresses the field knows from the start.
         case known
-        /// Not a place at all — words, and an engine to ask.
+        /// Not a place at all — words, and an engine to ask: the engine's
+        /// own suggestion for what is being typed.
         case search
+        /// Words you asked the engine from the field before.
+        case searched
     }
 
-    public var id: String { key }
+    /// Words, apart from places, and one row whichever way they're written:
+    /// a search for "localhost" is not the place called that.
+    public var id: String {
+        kind == .search || kind == .searched ? "?" + key.lowercased() : key
+    }
 
     public init(key: String, title: String, url: URL, kind: Kind, tab: UUID? = nil) {
         self.key = key

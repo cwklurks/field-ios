@@ -85,7 +85,7 @@ import UIKit
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
         ) { [history, saved] _ in
             MainActor.assumeIsolated {
-                if !history.isLoaded { Task { await history.load() } }
+                Task { await history.load() }
                 if !saved.isLoaded { Task { await saved.load() } }
             }
         }

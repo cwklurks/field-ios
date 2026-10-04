@@ -628,23 +628,42 @@ final class CriticTour: XCTestCase {
         app.launchArguments = ["-FieldTouchMarks", "YES", "-welcomed", "YES", "-bar.look", look, "-look", mode]
         app.launch()
         try await pause(3)
+        // These tabs are real, so the session keeps them and a rerun opens on
+        // the last run's: start by topping up to eight, from wherever it is.
+        let started = Int(app.element("bar.tabs").value as? String ?? "1") ?? 1
+        XCTAssertLessThanOrEqual(started, 8, "the session has more tabs than this test opens: uninstall first")
+        let toOpen = max(0, 8 - started)
         if !app.keyboards.firstMatch.exists { app.element("bar.address").tap() }
         try await pause(1)
         app.typeText(server.url("/page/1").absoluteString + "\n")
         try await pause(2.5)
-        for n in 2...8 {
-            app.element("bar.tabs").tap()
-            try await pause(1.2)
-            app.element("tabs.new").tap()
-            try await pause(1.5)
-            app.typeText(server.url("/page/\(n)").absoluteString + "\n")
-            try await pause(2.5)
+        if toOpen > 0 {
+            for n in 2...(toOpen + 1) {
+                app.element("bar.tabs").tap()
+                try await pause(1.2)
+                app.element("tabs.new").tap()
+                try await pause(1.5)
+                app.typeText(server.url("/page/\(n)").absoluteString + "\n")
+                try await pause(2.5)
+            }
         }
         app.element("bar.tabs").tap()
         try await pause(1.5)
-        app.element("tabs.card.3").swipeLeft(velocity: .default)
+        // The grid opens at the current tab, the last one opened, so the card
+        // swiped away here starts above the viewport: scroll down until it,
+        // and the card chosen after, are on screen.
+        let grid = app.element("tabs.grid")
+        let swiped = app.element("tabs.card.3")
+        let chosen = app.element("tabs.card.1")
+        for _ in 0..<8 where !(swiped.isHittable && chosen.isHittable) {
+            grid.swipeDown(velocity: .fast)
+            try await pause(0.6)
+        }
+        XCTAssertTrue(swiped.isHittable, "tabs.card.3 never came into view")
+        XCTAssertTrue(chosen.isHittable, "tabs.card.1 never came into view")
+        swiped.swipeLeft(velocity: .default)
         try await pause(1.5)
-        app.element("tabs.card.1").tap()
+        chosen.tap()
         try await pause(2)
         XCUIDevice.shared.press(.home)
         try await pause(2)
@@ -654,7 +673,9 @@ final class CriticTour: XCTestCase {
         try await pause(4)
         app.element("bar.tabs").tap()
         try await pause(2)
-        print("CARDS AFTER RESTORE: \(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tabs.card.'")).count)")
+        let cards = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tabs.card.'")).count
+        print("CARDS AFTER RESTORE: \(cards)")
+        XCTAssertEqual(cards, 7, "one of eight tabs swiped away must leave seven")
         app.element("tabs.done").tap()
         try await pause(2)
     }
@@ -900,6 +921,11 @@ final class CriticServer: @unchecked Sendable {
     }
 
     private static func respond(on connection: NWConnection, path: String) {
+        // `/slow/<path>`: the same page, 1.5 s late, so the bar's ring has time to show.
+        if path.hasPrefix("/slow/") {
+            queue.asyncAfter(deadline: .now() + 1.5) { respond(on: connection, path: String(path.dropFirst(5))) }
+            return
+        }
         let (status, type, body): (String, String, Data) = switch path {
         case "/article":
             ("200 OK", "text/html; charset=utf-8", Data(Article.html.replacingOccurrences(of: "<body>", with: "<body>" + CriticTour.heartbeat).utf8))
