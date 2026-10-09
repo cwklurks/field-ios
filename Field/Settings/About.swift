@@ -14,7 +14,7 @@ struct About: View {
                     .ramp(.caption)
                     .foregroundStyle(Palette.muted)
             }
-            Text("Nothing leaves your phone except the pages you open.")
+            Text("Nothing leaves your phone except the pages you open and, if they’re on, search suggestions.")
                 .ramp(.row)
                 .fixedSize(horizontal: false, vertical: true)
             Button { reading = true } label: {
