@@ -1,10 +1,10 @@
 # Security
 
-Field's promise is that nothing leaves your phone that you didn't ask to send. A way around that is a vulnerability, and it should be reported privately, not in a public issue.
+Field's network activity is described in the README and [docs/privacy.md](docs/privacy.md), including search suggestions, which are on by default. A privacy leak beyond that policy should be reported privately, not in a public issue.
 
 ## How to report
 
-- Use GitHub's private vulnerability reporting: the **Security** tab of this repository, then **Report a vulnerability**.
+- If GitHub's private vulnerability reporting is enabled, use the **Security** tab of this repository, then **Report a vulnerability**. If that option is unavailable, use email.
 - Or email fieldbrowser.app@gmail.com.
 
 Say what you found, which version of Field (Settings › About) and iOS, and the steps to see it. A page or link that shows it is the most useful thing you can send. Please give a fix time to ship before you publish.

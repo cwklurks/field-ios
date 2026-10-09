@@ -19,7 +19,7 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 - **Clean links.** Links arrive without the wrappers: Google, Facebook, Reddit and YouTube redirects are unwrapped, tracking parameters are stripped, AMP pages return to the original, and a cross-site jump or App Store hijack you did not tap is cancelled.
 - **Saved.** Save a page from the address's long-press menu and it lands in one list with optional folders. Starred pages sit on the new-tab page; "Read later" is the saved pages you have not opened since.
 - **Capture the whole page.** Capture Page on the address's long-press saves a PDF or one tall image to share. The system screenshot's Full Page tab does the same, and opens where you were looking.
-- **Links from other apps.** Once Field is your default browser, a link tapped in Mail or Messages opens in your ordinary tabs, cleaned like any other, and never in Private. Apple has not yet granted Field the default-browser entitlement, so for now iOS sends those links to Safari.
+- **Links from other apps.** Once Field is your default browser, a link tapped in Mail or Messages opens in your ordinary tabs, cleaned like any other, and never in Private. The default-browser entitlement is disabled in this project's standard build while Apple's approval is pending, so iOS uses your selected default browser for those links.
 - **Private.** A separate, always-dark space you deliberately enter. Its tabs keep nothing on disk, it locks when you leave, shows a cover in the app switcher, and is wiped when you close it. It says plainly what it cannot do.
 - **Help that stays on the phone.** Saved can suggest a folder for a page with Apple's on-device language tools.
 
@@ -66,7 +66,7 @@ A **private tab** keeps its tabs, pictures and history in memory, in its own dat
 
 ## Licence
 
-Field's own code is under the [Mozilla Public License 2.0](LICENSE). You can read it, change it and share it; a file you change stays under the MPL, and the rest of your project can be under any licence.
+Field's own code is under the [Mozilla Public License 2.0](LICENSE). You can read it, change it and share it; changes to MPL-covered files stay under the MPL when distributed. Separate files can use another licence, subject to the licences of any third-party material they contain.
 
 Field includes code adapted from **Search** by Office Commun, under the MIT License. It ships third-party block lists and rule tables, each with its own licence. All of it is set out in [NOTICE.md](NOTICE.md), which the app shows in full under Settings › About.
 

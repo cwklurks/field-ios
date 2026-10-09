@@ -1,8 +1,10 @@
 # Notices
 
-Field's own code is under the Mozilla Public License 2.0, in LICENSE. The
-work below is other people's and keeps its own licence. The full texts of
-the GPL and the Apache License are in LICENSES/.
+Field's own code is under the [Mozilla Public License 2.0](https://mozilla.org/MPL/2.0/),
+in LICENSE. Its [source code](https://github.com/cwklurks/field-ios) is available
+in this repository. The work below is other people's and keeps its own
+licence. The full texts of the GPL and the Apache License are in this
+repository's LICENSES/ directory.
 
 Field includes code adapted from **Search** by Office Commun
 (https://github.com/driceroland/Search), under the MIT License below. Files adapted
@@ -60,8 +62,9 @@ written in the format of Brave's debounce list.
 ## Block lists
 
 Field ships EasyList and EasyPrivacy (Field/Resources/Lists), converted from
-Adblock Plus syntax to WebKit content rule list JSON and gzipped. Nothing else
-was changed. `scripts/lists/build.sh` fetches and converts them, and
+Adblock Plus syntax to WebKit content rule list JSON and gzipped. Field's
+allowlist (`scripts/lists/allowlist.txt`) is appended before conversion.
+`scripts/lists/build.sh` fetches and converts them, and
 `blocking-manifest.json` records each list's source, version and sha256.
 
 - **EasyList** (`easylist.json.gz`) and **EasyPrivacy**
@@ -79,8 +82,10 @@ was changed. `scripts/lists/build.sh` fetches and converts them, and
   https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
   Public License, version 3. It is not part of the app and is not
   distributed with it, or with this repository: `build.sh` downloads it.
-  The same goes for the public suffix data it reads, from **swift-psl**,
-  https://github.com/ameshkov/swift-psl, under the MIT License.
+  Its build-time resource bundle comes from **swift-psl**,
+  https://github.com/ameshkov/swift-psl. That library's code is under the
+  MIT License, Copyright 2025 Andrey Meshkov; the Public Suffix List data
+  it processes is under the Mozilla Public License 2.0, as described above.
 
 ### Domain lists
 

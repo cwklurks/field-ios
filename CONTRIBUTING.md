@@ -21,7 +21,7 @@ Both should pass before you open a pull request.
 
 ## No tracking, ever
 
-Field sends nothing about the people who use it, and that is the point of it. A pull request that adds analytics, telemetry, crash reporting, an advertising identifier, a third-party SDK that phones home, or any request the user didn't ask for will not be merged. If a change makes the app send something new, say so in the pull request, and update [docs/privacy.md](docs/privacy.md) and the README's privacy table to match.
+Field has no analytics or telemetry. Browsing requests and enabled search suggestions are described in [docs/privacy.md](docs/privacy.md); suggestions are on by default. A pull request that adds analytics, telemetry, crash reporting, an advertising identifier, a third-party SDK that phones home, or an undisclosed background request will not be merged. If a change makes the app send something new, say so in the pull request, and update the privacy policy and the README's privacy table to match.
 
 ## Licence
 
