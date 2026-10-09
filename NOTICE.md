@@ -61,11 +61,15 @@ written in the format of Brave's debounce list.
 
 ## Block lists
 
-Field ships EasyList and EasyPrivacy (Field/Resources/Lists), converted from
-Adblock Plus syntax to WebKit content rule list JSON and gzipped. Field's
-allowlist (`scripts/lists/allowlist.txt`) is appended before conversion.
-`scripts/lists/build.sh` fetches and converts them, and
-`blocking-manifest.json` records each list's source, version and sha256.
+Field ships its block lists (Field/Resources/Lists) as WebKit content
+rule list JSON, converted from Adblock Plus syntax and gzipped. Each is
+under one licence, below. `scripts/lists/build.sh` makes them only from the
+exact upstream copies in `scripts/lists/sources`, which
+`scripts/lists/fetch.sh` fetches. `sources.json` there records each copy's
+source, revision or version, sha256, date and licence;
+`blocking-manifest.json`, beside the lists, records each list's licence,
+sources and sha256. So the source of the lists in any version of Field is
+in this repository at that version.
 
 - **EasyList** (`easylist.json.gz`) and **EasyPrivacy**
   (`easyprivacy.json.gz`), by the EasyList authors, https://easylist.to/,
@@ -76,37 +80,46 @@ allowlist (`scripts/lists/allowlist.txt`) is appended before conversion.
   Attribution-ShareAlike 3.0 Unported or later,
   https://creativecommons.org/licenses/by-sa/3.0/; Field uses them under
   CC BY-SA 3.0. See https://easylist.to/pages/licence.html. The converted
-  files are under the same licence.
-- The conversion is done at build time by **SafariConverterLib**
-  (`ConverterTool` 4.3.0), Copyright AdGuard Software Ltd.,
-  https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
-  Public License, version 3. It is not part of the app and is not
-  distributed with it, or with this repository: `build.sh` downloads it.
-  Its build-time resource bundle comes from **swift-psl**,
-  https://github.com/ameshkov/swift-psl. That library's code is under the
-  MIT License, Copyright 2025 Andrey Meshkov; the Public Suffix List data
-  it processes is under the Mozilla Public License 2.0, as described above.
+  files are under CC BY-SA 3.0 too. Their source is
+  `scripts/lists/sources/easylist.txt.gz` and `easyprivacy.txt.gz`, with
+  Field's allowlist (`scripts/lists/allowlist.txt`) appended before
+  conversion.
+- **Domain lists** (`domains-*.json.gz`), from **HaGeZi's DNS
+  Blocklists**: Multi PRO
+  (`adblock/pro.txt`) and the native tracker lists for Apple, Amazon,
+  Huawei, Samsung, TikTok, Xiaomi, Oppo/Realme, Vivo, LG webOS and Roku
+  (`adblock/native.*.txt`), by HaGeZi, from
+  https://github.com/hagezi/dns-blocklists. GNU General Public License,
+  version 3, https://www.gnu.org/licenses/gpl-3.0.html, and in
+  LICENSES/GPL-3.0.txt, which HaGeZi asks to go with every copy. Their
+  source is `scripts/lists/sources/hagezi-*.txt.gz`, merged, trimmed and
+  converted by `scripts/lists/domains.py` and `build.sh`: domains EasyList
+  or EasyPrivacy already block are left out, a list's own domain blocks as
+  a third party only, a few shared sites (protected.txt) are never blocked
+  whole, and the result is split into chunks of at most 60,000 input rules
+  before conversion. The converter can emit additional WebKit rules. The
+  chunks also hold the EasyList and EasyPrivacy exceptions for the domains
+  they block, since WebKit applies a list's exceptions only to its own
+  rules. Those come from the EasyList and EasyPrivacy sources above and are
+  used here under EasyList's GPL option, so each domain list is under the
+  GNU General Public License, version 3, as a whole.
 
-### Domain lists
+Field's own rules (`allowlist.txt`, `extra.txt` and `protected.txt` in
+scripts/lists) are under the Mozilla Public License 2.0 like the rest of
+its code. Where they are copied into a list (the allowlist into every list,
+extra.txt into `domains-1.json.gz`), Field also offers them under that
+list's licence.
 
-Field also ships HaGeZi's domain lists (Field/Resources/Lists/domains-*.json.gz),
-merged, trimmed and converted by `scripts/lists/domains.py` and `build.sh`:
-domains EasyList or EasyPrivacy already block are left out, a list's own
-domain blocks as a third party only, a few shared sites (protected.txt) are
-never blocked whole, and the result is split into chunks of at most 60,000
-input rules before conversion. Relevant EasyList and EasyPrivacy exceptions
-are copied into these chunks. Field's own rules (extra.txt, allowlist.txt)
-are added to them. The converter can emit additional WebKit rules.
-
-- **HaGeZi's DNS Blocklists**: Multi PRO (`adblock/pro.txt`) and the native
-  tracker lists for Apple, Amazon, Huawei, Samsung, TikTok, Xiaomi,
-  Oppo/Realme, Vivo, LG webOS and Roku (`adblock/native.*.txt`), by
-  HaGeZi, from https://github.com/hagezi/dns-blocklists. GNU General
-  Public License, version 3, https://www.gnu.org/licenses/gpl-3.0.html, and
-  in LICENSES/GPL-3.0.txt, which HaGeZi asks to go with every copy. The
-  source of these lists is that repository; the lists as Field ships them
-  are under the same licence, and the scripts that make them are in
-  scripts/lists/.
+The conversion is done at build time by **SafariConverterLib**
+(`ConverterTool` 4.3.0), Copyright AdGuard Software Ltd.,
+https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
+Public License, version 3. It is not part of the app and is not
+distributed with it, or with this repository: `build.sh` downloads it and
+checks its sha256. Its build-time resource bundle comes from **swift-psl**,
+https://github.com/ameshkov/swift-psl, at a fixed revision, also checked.
+That library's code is under the MIT License, Copyright 2025 Andrey
+Meshkov; the Public Suffix List data it processes is under the Mozilla
+Public License 2.0, as described above. The manifest records both.
 
 ## Name and icon
 
