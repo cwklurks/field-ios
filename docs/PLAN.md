@@ -220,7 +220,6 @@ These are unverified in the research; each one belongs to the milestone that nee
 - The on-device model's context size, 4k or 8k (M6).
 - Every Tor leak (M7).
 
-## Next steps
+## Status
 
-1. **Turn on Developer Mode on your iPhone.** Xcode is already signed in to your paid team.
-2. **Set up the workflow:** in this repo, run `/mattpocock-skills:setup-matt-pocock-skills`. Then either `/mattpocock-skills:wayfinder` for the whole build, or `/mattpocock-skills:to-spec` starting from M0–M1.
+M0 to M6 and the Release 1 work are built; Tor (M7) isn't started. The milestones above are kept as the plan they were built from. To build and test Field, see the README; [`perf.md`](perf.md) and [`motion.md`](motion.md) are how a change is checked, and CONTRIBUTING.md is how to send one.
