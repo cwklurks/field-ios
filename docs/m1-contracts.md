@@ -84,6 +84,7 @@ These work as launch arguments too, e.g. `-welcomed YES`.
 
 Launch arguments, which work in Release too, since FieldPerf runs Release:
 - `-FieldOpen <url>` (**app**) opens that URL in the tab at launch. The perf tests pass an `http://127.0.0.1:<port>/article` fixture served by the test runner, or a `data:` URL.
+- `-FieldIncoming <url>` (**app**) hands that URL to `Arrivals` at launch, as a link from another app would come, for what no app can send (a `javascript:` link). Real links are opened with `XCUIApplication.open(_:)`.
 - `-FieldSeedHistory <N>` (**kit**) fills HistoryStore with N synthetic places in memory. That process never reads or writes history.json.
 - `-welcomed NO` lands in the argument domain and hides the app's own write. So the welcome hides from state the tap sets, not from re-reading the default.
 

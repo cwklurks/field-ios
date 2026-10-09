@@ -3,6 +3,21 @@
 <plist version="1.0">
 <dict>
 	<!-- The keys the build settings can't write; Xcode merges the rest in. -->
+	<!-- Web links from other apps (Arrivals). What Apple asks of a browser before it can be the default; until the entitlement is granted, iOS still sends them to Safari. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.connork.fieldbrowser.web</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>http</string>
+				<string>https</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Pages may be plain http (a router, a dev server); the app's own requests stay https. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>

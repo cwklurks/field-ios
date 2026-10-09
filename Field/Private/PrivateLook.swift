@@ -173,6 +173,15 @@ final class PrivateStrip: UIView {
         run(to: toPrivate ? 1 : 0, velocity: velocity)
     }
 
+    /// There at once: under Private's shade, which hides the change
+    /// (Browser.leavePrivate).
+    func cut(toPrivate: Bool) {
+        pickUp()
+        from = nil
+        apply(toPrivate ? 1 : 0)
+        landed(toPrivate)
+    }
+
     /// The finger has moved `dx` points sideways since it came down.
     func track(_ dx: CGFloat) {
         if from == nil {

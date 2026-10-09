@@ -75,7 +75,10 @@ struct StageView: UIViewRepresentable {
         }
         c.side?.welcomeShown = browser.privately && browser.tab.url == nil && !browser.tabs.gridShown
         let inside = browser.privately
-        if !c.dragging, (strip.progress > 0.5) != inside { strip.slide(toPrivate: inside) }
+        if !c.dragging, (strip.progress > 0.5) != inside {
+            if browser.cutToEveryday, !inside { strip.cut(toPrivate: false) } else { strip.slide(toPrivate: inside) }
+        }
+        browser.cutToEveryday = false
         // The bar is the one surface over both sides: it shows over a page
         // and goes over a grid, for the side it's going to, as it slides.
         if c.barFor != inside, let bar = browser.tabs.chrome {
@@ -582,7 +585,8 @@ final class Stage: UIView {
     ///
     /// `field`: a new tab from the grid's + , whose field opens from the
     /// bar at once, as the blank page comes (see Tabs.newTabFromGrid).
-    func closeGrid(selecting tab: Tab, field: Bool = false) {
+    /// `now`: in place at once, with no motion (see Tabs.hideGrid).
+    func closeGrid(selecting tab: Tab, field: Bool = false, now: Bool = false) {
         guard let grid else { return }
         let turning = turnAround(for: tab)
         if turning == nil { finishMoving() }
@@ -601,7 +605,7 @@ final class Stage: UIView {
             tabs.openField()
         } else {
             grid.showRow(false)
-            showBar(true, after: 0.1)
+            showBar(true, after: 0.1, now: now)
         }
 
         let landed: () -> Void = { [weak self] in
@@ -613,6 +617,12 @@ final class Stage: UIView {
             self.page.isHidden = false
             self.place(tab, picture: picture)
             self.endInterval()
+        }
+        guard !now else {
+            grid.alpha = 0
+            land()
+            landed()
+            return
         }
         guard !UIAccessibility.isReduceMotionEnabled, turning != nil || source != nil else {
             page.isHidden = false
