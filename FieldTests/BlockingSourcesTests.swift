@@ -88,6 +88,49 @@ struct BlockingSourcesTests {
         #expect(manifest.tools.allSatisfy { $0.sha256.count == 64 })
     }
 
+    /// A domain list is HaGeZi's domains and Field's own rules, so its only
+    /// exceptions are allowlist.txt's, exactly as the converter writes them
+    /// (the manifest records both), and the one build.sh adds so a page
+    /// itself always opens. None come from EasyList or EasyPrivacy.
+    @Test func domainListsHaveNoExceptionsButFieldsOwn() throws {
+        let manifest = try manifest, directory = try directory
+        let record = try #require(try JSONSerialization.jsonObject(
+            with: Data(contentsOf: directory.appendingPathComponent("\(BlockingManifest.resource).json"))
+        ) as? [String: Any])
+        let allowlist = try #require(record["allowlist"] as? [String: Any], "the manifest has no allowlist")
+        // allowlist.txt's rules, read the way domains.py reads them.
+        let text = try String(
+            contentsOf: sources.deletingLastPathComponent().appending(path: "allowlist.txt"), encoding: .utf8
+        )
+        let lines = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("!") }
+        #expect(allowlist["rules"] as? [String] == lines, "the manifest's allowlist isn't allowlist.txt's")
+
+        func isException(_ rule: [String: Any]) -> Bool {
+            (rule["action"] as? [String: Any])?["type"] as? String == "ignore-previous-rules"
+        }
+        func canonical(_ rule: [String: Any]) throws -> String {
+            try String(decoding: JSONSerialization.data(withJSONObject: rule, options: .sortedKeys), as: UTF8.self)
+        }
+        let converted = try #require(allowlist["converted"] as? [[String: Any]])
+        let expected = try converted.filter(isException).map(canonical).sorted()
+        let domainLists = manifest.lists.filter { $0.name.hasPrefix("domains-") }
+        #expect(!domainLists.isEmpty)
+        for list in domainLists {
+            let json = try Gzip.inflate(Data(contentsOf: directory.appendingPathComponent(list.file)))
+            let rules = try #require(JSONSerialization.jsonObject(with: json) as? [[String: Any]])
+            let exceptions = try rules.filter { rule in
+                let trigger = rule["trigger"] as? [String: Any] ?? [:]
+                let page = trigger["url-filter"] as? String == ".*"
+                    && trigger["resource-type"] as? [String] == ["document"]
+                    && trigger["load-context"] as? [String] == ["top-frame"]
+                return isException(rule) && !page
+            }.map(canonical).sorted()
+            #expect(exceptions == expected, "\(list.name)'s exceptions aren't the allowlist's")
+        }
+    }
+
     /// The copies in the repository are the ones recorded, and the record
     /// the app ships is the repository's.
     @Test func theSourcesAreInTheRepository() throws {

@@ -95,15 +95,12 @@ in this repository at that version.
   LICENSES/GPL-3.0.txt, which HaGeZi asks to go with every copy. Their
   source is `scripts/lists/sources/hagezi-*.txt.gz`, merged, trimmed and
   converted by `scripts/lists/domains.py` and `build.sh`: domains EasyList
-  or EasyPrivacy already block are left out, a list's own domain blocks as
-  a third party only, a few shared sites (protected.txt) are never blocked
-  whole, and the result is split into chunks of at most 60,000 input rules
-  before conversion. The converter can emit additional WebKit rules. The
-  chunks also hold the EasyList and EasyPrivacy exceptions for the domains
-  they block, since WebKit applies a list's exceptions only to its own
-  rules. Those come from the EasyList and EasyPrivacy sources above and are
-  used here under EasyList's GPL option, so each domain list is under the
-  GNU General Public License, version 3, as a whole.
+  or EasyPrivacy already block, or make exceptions for, are left out, a
+  list's own domain blocks as a third party only, a few shared sites
+  (protected.txt) are never blocked whole, and the result is split into
+  chunks of at most 60,000 input rules before conversion. The converter can
+  emit additional WebKit rules. EasyList and EasyPrivacy only decide what's
+  left out: the domain lists contain no EasyList or EasyPrivacy text.
 
   HaGeZi, as author and copyright holder of these lists, has given Field
   written permission (8 October 2026) to distribute them, in original or

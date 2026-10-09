@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T02:28:06Z",
+  "date": "2026-10-09T19:46:30Z",
   "converter": "SafariConverterLib 4.3.0",
   "safariVersion": "26.0",
   "tools": [
@@ -159,6 +159,10 @@
       "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
     }
   ],
+  "allowlist": {
+    "rules": [],
+    "converted": []
+  },
   "lists": [
     {
       "name": "easylist",
@@ -204,7 +208,7 @@
         "easyprivacy"
       ],
       "rules": 60003,
-      "sha256": "dddebf2f05b1c0d66e13667acbf6dcd367a8487590edbbf13757fbf3791986a8",
+      "sha256": "bc14bdb636508e9cb666ae98278adafe82c9ede72154fb036ec1752df33f84d6",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     },
@@ -228,7 +232,7 @@
         "easyprivacy"
       ],
       "rules": 60001,
-      "sha256": "d0d475c5b9c1e788bc21be6ef0565afa25da430cff00e43f83dfc292c9cf2b47",
+      "sha256": "b660a750d3ebd11f8fbaf55eb7673b9c8dd9e8f03adf27d4cd7cec5bafc9aa34",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     },
@@ -251,8 +255,8 @@
         "easylist",
         "easyprivacy"
       ],
-      "rules": 52578,
-      "sha256": "259583bc456571d870ae83dd90a4ad1b9f0652dfec39e03740c763dc5bec6419",
+      "rules": 51590,
+      "sha256": "4bd57a1f89d92558fc28a276bb4583f2aa626766873b25d39f5130b8dc2ed82d",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     }
