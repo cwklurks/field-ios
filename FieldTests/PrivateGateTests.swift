@@ -121,6 +121,27 @@ import UIKit
         gate.left()
     }
 
+    @Test func anOldFaceIDAnswerCannotCompleteANewAttempt() async throws {
+        defer { clean() }
+        var answers: [CheckedContinuation<Bool, Never>] = []
+        let (gate, _) = gate(asked: { await withCheckedContinuation { answers.append($0) } })
+        post(UIScene.didEnterBackgroundNotification)
+        post(UIScene.didActivateNotification)
+        let first = Task { await gate.unlock() }
+        while answers.count < 1 { await Task.yield() }
+        gate.left()
+        gate.entered()
+        let second = Task { await gate.unlock() }
+        while answers.count < 2 { await Task.yield() }
+        answers[0].resume(returning: true)
+        await first.value
+        #expect(gate.lock.state == .unlocking)
+        answers[1].resume(returning: false)
+        await second.value
+        #expect(gate.lock.state == .locked)
+        gate.left()
+    }
+
     /// Face ID on the simulator, with a face enrolled and matched through
     /// BiometricKit's notifications (as `simctl spawn … notifyutil` would).
     /// Needs NSFaceIDUsageDescription in the host app, so it's opt-in:

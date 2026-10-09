@@ -31,7 +31,7 @@ import os
         }
         #endif
         let now = inbox.received(url)
-        Self.log.notice("received \(url), \(now.isEmpty ? "waiting" : "opening", privacy: .public)")
+        Self.log.notice("received \(url, privacy: .private), \(now.isEmpty ? "waiting" : "opening", privacy: .public)")
         take(now)
     }
 
@@ -52,10 +52,9 @@ import os
         let cleaning = await Guarded.loaded()
         while !due.isEmpty {
             let url = due.removeFirst()
-            let shield = ContentBlocking.shared.isShieldOn(for: url.host())
-            switch IncomingLink.accept(url, cleaning: cleaning, shieldOn: shield) {
+            switch IncomingLink.accept(url, cleaning: cleaning, shieldOn: ContentBlocking.shared.isShieldOn(for:)) {
             case .success(let clean):
-                Self.log.notice("opening \(clean)")
+                Self.log.notice("opening \(clean, privacy: .private)")
                 open(clean)
             case .failure(let rejection):
                 Self.log.notice("rejected, \(String(describing: rejection), privacy: .public)")

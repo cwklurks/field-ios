@@ -187,6 +187,25 @@ struct PrivateLockTests {
         #expect(lock.handle(.unlockTapped, now: now) == nil)
         #expect(lock.state == .open)
     }
+
+    @Test func leavingDuringAuthenticationIgnoresItsLateSuccess() {
+        var lock = inside()
+        _ = lock.handle(.backgrounded, now: now)
+        _ = lock.handle(.activated, now: later(1))
+        _ = lock.handle(.unlockTapped, now: later(2))
+        _ = lock.handle(.left, now: later(3))
+        _ = lock.handle(.unlocked(true), now: later(4))
+        #expect(lock.state == .locked)
+        _ = lock.handle(.entered, now: later(5))
+        #expect(lock.shade == .locked)
+    }
+    @Test func anUnlockTapAfterLeavingCannotStartAuthentication() {
+        var lock = inside()
+        _ = lock.handle(.left, now: now)
+        #expect(lock.handle(.unlockTapped, now: later(1)) == nil)
+        #expect(lock.state == .locked)
+    }
+
 }
 
 /// The wipe's order: nothing may still hold the store when its data goes,

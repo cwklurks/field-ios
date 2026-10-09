@@ -29,6 +29,8 @@ import UIKit
     private var observers: [any NSObjectProtocol] = []
     private var capture: (any UITraitChangeRegistration)?
     private var wiping = false
+    private var authentication = UUID()
+    private var holdingShade = false
 
     init(space: PrivateSpace, defaults: UserDefaults = .standard,
          authenticate: @escaping () async -> Bool = { await FaceID.unlock() },
@@ -56,20 +58,32 @@ import UIKit
 
     /// Into Private. The shade is made now, while nothing is in a hurry.
     func entered() {
+        holdingShade = false
         lock.canLock = canLock()
         prepare()
         send(.entered)
     }
 
     /// Back to the everyday tabs: locked, or wiped.
-    func left() {
+    func left(underShade: Bool = false) {
+        authentication = UUID()
+        holdingShade = underShade
         send(.left)
+        if underShade {
+            AfterCommit.run { [weak self] in
+                self?.holdingShade = false
+                self?.show()
+            }
+        }
     }
 
     /// The lock screen's Unlock: Face ID, or the passcode.
     func unlock() async {
         guard send(.unlockTapped) == .authenticate else { return }
+        let attempt = UUID()
+        authentication = attempt
         let yes = await authenticate()
+        guard authentication == attempt else { return }
         send(.unlocked(yes))
     }
 
@@ -109,6 +123,7 @@ import UIKit
     }
 
     private func show() {
+        guard !holdingShade else { return }
         let shade = lock.shade
         guard shade != .none else {
             window?.hide(animated: true)

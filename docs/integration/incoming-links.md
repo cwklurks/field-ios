@@ -14,7 +14,9 @@ FieldKit's `IncomingLink.accept` (`FieldKit/Sources/FieldKit/Incoming/IncomingLi
 
 - only `http` and `https`, with a host;
 - no name or password before the host;
-- then the guard's clean-up, as a tapped link gets it: a redirector unwrapped, tracking parameters stripped, unless the site's shield is off. What a redirector was hiding is checked again.
+- ports must be in 0...65535, with no encoded NUL bytes or escaped delimiters, whitespace or controls in the host;
+- known redirects are unwrapped and each hidden destination is checked, including non-web schemes and credentials. Chains beyond the guard's four unwraps are refused;
+- the destination site's shield decides tracking clean-up. With its shield off, the unwrapped destination keeps its parameters, so the redirector's shield cannot clean them again when WebKit loads it.
 
 A link that fails says so in a toast and opens nothing: "Field opens only web links.", "Didn't open a link with a password in it." or "That link has no address to open."
 

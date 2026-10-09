@@ -98,6 +98,8 @@ public struct PrivateLock: Equatable, Sendable {
             return overdue(now)
         case .left:
             inside = false
+            // Leaving mid-prompt revokes that attempt, just like backgrounding.
+            if state == .unlocking { state = .locked }
             return leave(now)
         case .resigned:
             active = false
@@ -116,7 +118,7 @@ public struct PrivateLock: Equatable, Sendable {
             capturing = on
             return nil
         case .unlockTapped:
-            guard state == .locked else { return nil }
+            guard inside, state == .locked else { return nil }
             state = .unlocking
             return .authenticate
         case .unlocked(let yes):

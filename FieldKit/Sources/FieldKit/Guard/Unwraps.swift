@@ -133,7 +133,7 @@ struct Unwraps: Sendable {
 
     /// Where a shim at `url` really goes, if a rule knows and it is on
     /// another site. `site` is the shim's registrable domain.
-    func target(of url: URL, host: String, site: Substring, suffixes: PublicSuffixes) -> URL? {
+    func target(of url: URL, host: String, site: Substring, suffixes: PublicSuffixes, webOnly: Bool = true) -> URL? {
         var candidates = exact[host] ?? []
         for domain in DomainSuffixes(host) {
             if let found = byDomain[domain] { candidates += found }
@@ -153,11 +153,19 @@ struct Unwraps: Sendable {
             tried.insert(index)
             let rule = rules[index]
             guard !rule.excludes.contains(where: { $0.matches(scheme: scheme, pathAndQuery: pathAndQuery) }),
-                  let target = Self.apply(rule, path: path, query: query),
-                  target.scheme == "http" || target.scheme == "https",
-                  let targetHost = GuardRules.host(of: target),
-                  suffixes.site(of: targetHost) != site
+                  let target = Self.apply(rule, path: path, query: query)
             else { continue }
+            // Incoming links must reject an unsafe hidden destination, rather
+            // than treating the enclosing redirector as the destination.
+            if !webOnly, target.scheme?.lowercased() != "http" && target.scheme?.lowercased() != "https" {
+                return target
+            }
+            guard let targetHost = GuardRules.host(of: target) else {
+                if !webOnly { return target }
+                continue
+            }
+            guard target.scheme?.lowercased() == "http" || target.scheme?.lowercased() == "https",
+                  suffixes.site(of: targetHost) != site else { continue }
             return target
         }
         return nil

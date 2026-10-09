@@ -210,7 +210,7 @@ import UIKit
         privately = false
         guard underShade else { return gate.left() }
         cutToEveryday = true
-        AfterCommit.run { [gate] in gate.left() }
+        gate.left(underShade: true)
     }
 
     // MARK: - links from other apps

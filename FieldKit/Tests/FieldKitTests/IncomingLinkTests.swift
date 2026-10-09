@@ -47,6 +47,9 @@ struct IncomingLinkTests {
     static let credentials = [
         "https://user:secret@example.com/",
         "https://user@example.com/",
+        "http://user@example.com:8080/",
+        "https://%75ser@example.com/",
+        "https://@example.com/",
         "http://:secret@example.com/",
         // The old trick: the "host" a person reads is the user name.
         "https://www.apple.com@evil.example/",
@@ -111,4 +114,48 @@ struct IncomingLinkTests {
         let hidden = "https://www.google.com/url?q=https%3A%2F%2Fwww.apple.com%40evil.example%2F&sa=D"
         #expect(try Self.accept(hidden) == .failure(.credentials))
     }
+    @Test(arguments: ["http://example.com:65536/", "https://example.com/%00", "https://example.com/?q=%00", "https://%00.example/", "http://user%40host/", "http://host%2Fother/", "http://host%20name/", "http://host%0Aname/"])
+    func malformedWebLinksAreRejected(_ text: String) throws {
+        #expect(try Self.accept(text) == .failure(.malformed))
+    }
+
+    @Test(arguments: ["javascript:alert(1)", "data:text/html,secret", "file:///tmp/secret", "https://user@evil.example/", "https://example.com:99999/", "https://example.com/%00"])
+    func nestedRedirectDestinationsAreChecked(_ destination: String) throws {
+        var inner = URLComponents(string: "https://l.facebook.com/l.php")!
+        inner.queryItems = [.init(name: "u", value: destination)]
+        var outer = URLComponents(string: "https://www.google.com/url")!
+        outer.queryItems = [.init(name: "q", value: inner.url!.absoluteString)]
+        let rejection: IncomingLink.Rejection = destination.hasPrefix("https://user@") ? .credentials
+            : destination.hasPrefix("https:") ? .malformed : .notWeb
+        #expect(IncomingLink.accept(outer.url!, cleaning: Self.field, shieldOn: true) == .failure(rejection))
+    }
+
+    @Test func uppercaseRedirectDestinationIsCleaned() throws {
+        let text = "https://www.google.com/url?q=HTTPS%3A%2F%2Fexample.org%2Fa%3Futm_source%3Dmail"
+        #expect(try Self.accept(text) == .success(URL(string: "HTTPS://example.org/a")!))
+    }
+
+    @Test func idnsAndLongValidPathsAreAccepted() throws {
+        for text in ["https://例え.jp/", "https://xn--r8jz45g.jp/", "https://example.com/" + String(repeating: "a", count: 100_000)] {
+            #expect(try Self.accept(text) == .success(URL(string: text)!))
+        }
+    }
+
+    @Test func redirectChainsBeyondTheGuardsLimitAreRefused() {
+        var url = URL(string: "https://user@evil.example/")!
+        for index in 0..<5 {
+            var parts = URLComponents(string: index % 2 == 0 ? "https://www.google.com/url" : "https://l.facebook.com/l.php")!
+            parts.queryItems = [.init(name: index % 2 == 0 ? "q" : "u", value: url.absoluteString)]
+            url = parts.url!
+        }
+        #expect(IncomingLink.accept(url, cleaning: Self.field, shieldOn: true) == .failure(.malformed))
+    }
+
+    @Test func theShieldReceivesTheIDNsCanonicalHost() {
+        let url = URL(string: "https://例え.jp/?utm_source=mail")!
+        var host: String?
+        #expect(IncomingLink.accept(url, cleaning: Self.field, shieldOn: { host = $0; return false }) == .success(url))
+        #expect(host == "xn--r8jz45g.jp")
+    }
+
 }

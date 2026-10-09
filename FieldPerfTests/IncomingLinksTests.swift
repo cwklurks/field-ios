@@ -171,6 +171,30 @@ final class IncomingLinksTests: XCTestCase {
         XCTAssert(app.element("private.unlock").waitForExistence(timeout: 3), "Private isn't locked any more")
     }
 
+    @MainActor func testGridAndSeveralLinks() throws {
+        let app = launch()
+        app.element("bar.tabs").tap()
+        XCTAssert(app.element("tabs.grid").waitForExistence(timeout: 3))
+        for page in 2...4 { try warm(server.url("/page/\(page)")) }
+        XCTAssert(shows(app, 4))
+        XCTAssert(app.element("tabs.grid").waitForNonExistence(timeout: 3))
+        XCTAssertEqual(tabCount(app), "4")
+    }
+
+    @MainActor func testSettingsSheetGivesWay() async throws {
+        let app = launch()
+        app.element("bar.tabs").tap()
+        let gear = try app.required("tabs.settings")
+        try await Task.sleep(for: .seconds(1.2))
+        gear.tap()
+        XCTAssert(app.element("settings").waitForExistence(timeout: 3))
+        try warm(server.url("/page/3"))
+        XCTAssert(shows(app, 3))
+        XCTAssert(app.element("settings").waitForNonExistence(timeout: 3))
+        XCTAssert(app.element("tabs.grid").waitForNonExistence(timeout: 3))
+        XCTAssertEqual(tabCount(app), "2")
+    }
+
     // MARK: - what
 
     /// A Google redirect lands where it was going, cold and warm.
