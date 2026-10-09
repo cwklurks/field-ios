@@ -87,9 +87,11 @@ extra = entries(here / "extra.txt")
 wanted = set()
 for source in sorted(work.glob("domains-*.src.txt")):
     wanted |= rules(source)
+merged = len(wanted)
 
 dropped = sorted(d for d in wanted if d in protected or is_suffix(d))
 wanted -= set(dropped)
+allowlisted = len(wanted & allowed)
 wanted -= allowed
 
 # Each host EasyList and EasyPrivacy make an exception for, and every domain
@@ -105,7 +107,9 @@ for name in ("easylist.txt", "easyprivacy.txt"):
 left_to_easylist = sorted(d for d in wanted if d in excepted)
 wanted -= set(left_to_easylist)
 # A subdomain of a domain that's already blocked adds nothing.
+before = len(wanted)
 wanted = {d for d in wanted if not any(a in wanted for a in ancestors(d)[1:])}
+under_blocked = before - len(wanted)
 
 # What EasyList and EasyPrivacy already block everywhere, or as a third party.
 everywhere, third_party = set(), set()
@@ -138,8 +142,9 @@ chunks = [blocks[i:i + size] for i in range(0, len(blocks), size)]
 for i, chunk in enumerate(chunks, 1):
     Path(f"{prefix}-{i}.txt").write_text("\n".join(chunk + tail) + "\n")
 
-merged = before + len(dropped) + len(left_to_easylist)
+# Each stage counts what it removed from the one before, so they add up.
 print(f"  {merged} domains after merging; dropped {len(dropped)} protected or public suffixes"
-      f" ({', '.join(dropped[:12])}{'…' if len(dropped) > 12 else ''}); left {len(left_to_easylist)} to EasyList"
-      f" for its exceptions; {covered_count} already in EasyList or EasyPrivacy; {len(wanted)} left in"
+      f" ({', '.join(dropped[:12])}{'…' if len(dropped) > 12 else ''}); {allowlisted} allowlisted;"
+      f" left {len(left_to_easylist)} to EasyList for its exceptions; {under_blocked} under a domain"
+      f" already blocked; {covered_count} already in EasyList or EasyPrivacy; {len(wanted)} left in"
       f" {len(chunks)} lists")

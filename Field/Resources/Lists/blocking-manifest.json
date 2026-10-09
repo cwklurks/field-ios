@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T18:35:20Z",
+  "date": "2026-10-09T19:43:17Z",
   "converter": "SafariConverterLib 4.3.0",
   "safariVersion": "26.0",
   "tools": [
@@ -159,6 +159,10 @@
       "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
     }
   ],
+  "allowlist": {
+    "rules": [],
+    "converted": []
+  },
   "lists": [
     {
       "name": "easylist",

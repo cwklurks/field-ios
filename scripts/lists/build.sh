@@ -160,6 +160,25 @@ for list in "${lists[@]}"; do
           listVersion: $listVersion, expires: $expires}')")
 done
 
+# Field's exceptions, as allowlist.txt has them (read the way domains.py
+# reads it) and as the converter writes them on their own. Every list gets
+# them, and BlockingSourcesTests checks a domain list has no others. The
+# converter writes a placeholder rule for a list with none, so an empty
+# allowlist is recorded as none.
+allowlist_rules=$(jq -R -s '[split("\n")[] | gsub("^\\s+|\\s+$"; "") | select(. != "" and (startswith("!") | not))]' \
+    scripts/lists/allowlist.txt)
+allowlist_converted='[]'
+if [ "$(jq length <<<"$allowlist_rules")" -gt 0 ]; then
+    SWIFT_DETERMINISTIC_HASHING=1 "$tools/ConverterTool" convert -s "$safari_version" -a false \
+        --input-path scripts/lists/allowlist.txt \
+        --safari-rules-json-path "$work/allowlist.json" \
+        --advanced-blocking-rules-path "$work/allowlist.advanced.txt" >"$work/allowlist.log" 2>&1 || {
+        cat "$work/allowlist.log" >&2
+        exit 1
+    }
+    allowlist_converted=$(jq -c . "$work/allowlist.json")
+fi
+
 # The app keys each compiled list by the sha256 of its JSON, so a list that
 # changed compiles again and one that didn't is left alone.
 printf '%s\n' "${entries[@]}" | jq -s \
@@ -173,6 +192,9 @@ printf '%s\n' "${entries[@]}" | jq -s \
           {name: "swift-psl", revision: $revision, sha256: $pslSha256,
            url: "https://github.com/ameshkov/swift-psl/tree/\($revision)/Sources/PublicSuffixList/Resources"}]')" \
     --slurpfile sources "$sources/sources.json" \
-    '{date: $date, converter: $converter, safariVersion: $safari, tools: $tools, sources: $sources[0], lists: .}' \
+    --argjson allowlist "$(jq -n --argjson rules "$allowlist_rules" --argjson converted "$allowlist_converted" \
+        '{rules: $rules, converted: $converted}')" \
+    '{date: $date, converter: $converter, safariVersion: $safari, tools: $tools, sources: $sources[0],
+      allowlist: $allowlist, lists: .}' \
     >"$out/blocking-manifest.json"
 echo "Wrote $out"
