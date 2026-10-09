@@ -67,7 +67,7 @@ public struct Guard: Sendable {
     /// Not a form, which may be a POST, and not history, which would grow.
     private static let fresh: Set<Navigation.Kind> = [.link, .typed, .script, .other]
     /// A shim inside a shim is real; a tower of them isn't worth following.
-    private static let unwrapLimit = 4
+    static let unwrapLimit = 4
 
     public func decide(_ nav: Navigation, shieldOn: Bool) -> Verdict {
         // 1. The scheme gate, the one step the shield's off switch keeps.

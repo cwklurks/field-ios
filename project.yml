@@ -15,6 +15,13 @@ settings:
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_APPROACHABLE_CONCURRENCY: "YES"
 
+# Off until Apple grants com.apple.developer.web-browser: the entitlement and
+# Settings' Default browser section (docs/release.md, "Default browser").
+# Switch on with `FIELD_DEFAULT_BROWSER=YES xcodegen generate`.
+include:
+  - path: project.default-browser.yml
+    enable: ${FIELD_DEFAULT_BROWSER}
+
 packages:
   FieldKit:
     path: FieldKit
@@ -43,6 +50,8 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
         # Only the launch screen's colour, which no build setting can write.
         INFOPLIST_FILE: Field/Info.plist
+        # For its one #ifdef: the UI tests' field-test scheme, in Debug only.
+        INFOPLIST_PREPROCESS: "YES"
         INFOPLIST_KEY_CFBundleDisplayName: Field
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
@@ -52,6 +61,9 @@ targets:
         INFOPLIST_KEY_NSFaceIDUsageDescription: "Only to unlock Private, so nobody else can open it."
         # The web view's own "Add to Photos" on a long-pressed image; without it iOS ends the app.
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Only to save a picture you chose to keep."
+      configs:
+        Debug:
+          INFOPLIST_PREPROCESSOR_DEFINITIONS: FIELD_TEST_SCHEME
 
   FieldTests:
     type: bundle.unit-test

@@ -54,7 +54,10 @@ struct StageView: UIViewRepresentable {
     /// Reads the current tab and its web view, and Private's session, so
     /// SwiftUI calls again when any of them changes.
     func updateUIView(_ strip: PrivateStrip, context: Context) {
-        let c = context.coordinator
+        update(strip, coordinator: context.coordinator)
+    }
+
+    func update(_ strip: PrivateStrip, coordinator c: Coordinator) {
         _ = browser.tabs.current.web
         if let tabs = browser.privateSpace.tabs, c.privateStage.map({ $0.tabs !== tabs }) ?? true {
             let stage = makeStage(for: tabs)
@@ -75,7 +78,16 @@ struct StageView: UIViewRepresentable {
         }
         c.side?.welcomeShown = browser.privately && browser.tab.url == nil && !browser.tabs.gridShown
         let inside = browser.privately
-        if !c.dragging, (strip.progress > 0.5) != inside { strip.slide(toPrivate: inside) }
+        if browser.cutToEveryday, !inside {
+            // A covered drag may still expose part of Private even below
+            // halfway. Finish the cut regardless of the finger's state.
+            c.dragging = false
+            c.asked = 0
+            strip.cut(toPrivate: false)
+        } else if !c.dragging, (strip.progress > 0.5) != inside {
+            strip.slide(toPrivate: inside)
+        }
+        browser.cutToEveryday = false
         // The bar is the one surface over both sides: it shows over a page
         // and goes over a grid, for the side it's going to, as it slides.
         if c.barFor != inside, let bar = browser.tabs.chrome {
@@ -582,7 +594,8 @@ final class Stage: UIView {
     ///
     /// `field`: a new tab from the grid's + , whose field opens from the
     /// bar at once, as the blank page comes (see Tabs.newTabFromGrid).
-    func closeGrid(selecting tab: Tab, field: Bool = false) {
+    /// `now`: in place at once, with no motion (see Tabs.hideGrid).
+    func closeGrid(selecting tab: Tab, field: Bool = false, now: Bool = false) {
         guard let grid else { return }
         let turning = turnAround(for: tab)
         if turning == nil { finishMoving() }
@@ -601,7 +614,7 @@ final class Stage: UIView {
             tabs.openField()
         } else {
             grid.showRow(false)
-            showBar(true, after: 0.1)
+            showBar(true, after: 0.1, now: now)
         }
 
         let landed: () -> Void = { [weak self] in
@@ -611,8 +624,16 @@ final class Stage: UIView {
             card?.pictureHidden = false
             card?.decorationHidden = false
             self.page.isHidden = false
-            self.place(tab, picture: picture)
+            // Another incoming link can select a later tab during this flight.
+            // Land on the selection that still belongs on screen.
+            self.place(self.tabs.current, picture: self.tabs.current === tab ? picture : nil)
             self.endInterval()
+        }
+        guard !now else {
+            grid.alpha = 0
+            land()
+            landed()
+            return
         }
         guard !UIAccessibility.isReduceMotionEnabled, turning != nil || source != nil else {
             page.isHidden = false

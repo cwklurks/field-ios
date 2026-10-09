@@ -1,0 +1,16 @@
+# Field as a default browser: the managed entitlement Apple grants on request
+# (docs/release.md, "Default browser"). Merged into project.yml only when
+# FIELD_DEFAULT_BROWSER is YES; a profile without the entitlement can't sign
+# it, so it stays off until Apple has approved.
+targets:
+  Field:
+    settings:
+      base:
+        CODE_SIGN_ENTITLEMENTS: Field/DefaultBrowser.entitlements
+        # Settings' Default browser section (DefaultBrowserSection).
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) FIELD_DEFAULT_BROWSER
+  # IncomingLinksTests.testDefaultBrowserRow expects the row only here.
+  FieldPerfTests:
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) FIELD_DEFAULT_BROWSER

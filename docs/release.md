@@ -68,6 +68,54 @@ Friends who aren't on the team are external testers. The first build of each ver
 
 Testers install from TestFlight's invitation, and each build expires after 90 days. Feedback, with screenshots, arrives under TestFlight › Feedback.
 
+## Default browser
+
+Field takes web links from other apps already: `http` and `https` are declared under `CFBundleURLTypes` in `Field/Info.plist`, and `onOpenURL` hands them to `Arrivals`. Until Apple grants the managed entitlement `com.apple.developer.web-browser`, iOS never offers Field as the default, so taps in Mail still go to Safari. The entitlement can't be added early: a profile without it can't sign the app, and the archive fails. It's prepared and off:
+
+- `Field/DefaultBrowser.entitlements` holds the key.
+- `project.default-browser.yml` points `CODE_SIGN_ENTITLEMENTS` at it and sets `FIELD_DEFAULT_BROWSER`, which shows Settings › Default browser (the system's Default Apps, and whether Field is the default). `project.yml` includes it only when the environment says `FIELD_DEFAULT_BROWSER=YES`, so a plain `xcodegen generate` and the archive script leave all of it out.
+
+### Asking Apple, once
+
+1. Fill in Apple's [Default browser entitlement request form](https://developer.apple.com/contact/request/default-browser-entitlement/) as the Account Holder, for bundle ID **com.connork.fieldbrowser**, team **H435XM227M**. Leave the app-installation entitlement unticked: that's for installing apps from marketplaces, not for being the default. The criteria are in [Preparing your app to be the default web browser](https://developer.apple.com/documentation/xcode/preparing-your-app-to-be-the-default-browser); the evidence for each is in [the research](research/switching-and-supporter.md#does-field-qualify-code-check-2026-10-08).
+2. Wait for Apple's email. Managed capabilities are listed on the App ID once granted: Certificates, Identifiers & Profiles › Identifiers › com.connork.fieldbrowser › Additional Capabilities ([Apple's help](https://developer.apple.com/help/account/capabilities/capability-requests/)). Turn it on there if it isn't already.
+
+### Switching it on
+
+For one archive, before Apple's approval is permanent in the project:
+
+```sh
+FIELD_DEFAULT_BROWSER=YES scripts/release/archive.sh
+```
+
+To keep it on, delete the `enable:` line under `include:` in `project.yml`, and run `xcodegen generate`. Automatic signing fetches a profile with the entitlement (`-allowProvisioningUpdates` in the script). A development build on a phone needs it in the development profile too; the simulator ignores it.
+
+### Checking the archive
+
+Archive without `--upload`, then:
+
+```sh
+app=build/release/Field.xcarchive/Products/Applications/Field.app
+# The entitlement is signed in: prints "true".
+codesign -d --entitlements :- "$app" | plutil -extract com\.apple\.developer\.web-browser raw -o - -
+# And the exported profile carries it: prints "true".
+unzip -oq build/release/export/Field.ipa -d /tmp/field-ipa
+security cms -D -i /tmp/field-ipa/Payload/Field.app/embedded.mobileprovision > /tmp/field-profile.plist
+/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.web-browser" /tmp/field-profile.plist
+# http and https are declared, and nothing else: field-test is Debug's alone.
+/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" "$app/Info.plist"
+# None of the keys Apple rejects in a browser: prints nothing.
+for key in NSPhotoLibraryUsageDescription NSLocationAlwaysUsageDescription NSLocationAlwaysAndWhenInUseUsageDescription \
+    NSLocationUsageDescription NSHomeKitUsageDescription NSBluetoothAlwaysUsageDescription \
+    NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
+    /usr/libexec/PlistBuddy -c "Print :$key" "$app/Info.plist" >/dev/null 2>&1 && echo "rejected key: $key"
+done
+```
+
+An archive without the switch fails the first check with "No value at that key path", and its Settings has no Default browser section.
+
+Then on the phone, from TestFlight: Settings › Apps › Default Apps › Browser App lists Field. Choose it, tap a link in Notes and in Mail, with Field closed, in the background, and with Private locked. Each opens in a new tab of your own, and Private stays locked.
+
 ## When something goes wrong
 
 - **"No Accounts" or "No profiles for 'com.connork.fieldbrowser'".** Xcode isn't signed in (step 1).

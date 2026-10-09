@@ -32,6 +32,9 @@ struct FieldApp: App {
                 }
             }
             .onAppear(perform: firstFrame)
+            // A link from another app, at a cold launch too: held until the
+            // browser has started and the welcome is done (Arrivals).
+            .onOpenURL { browser.arrivals.received($0) }
             // At the root, so every sheet and page agrees with it.
             .preferredColorScheme(look.scheme)
             .dynamicTypeSize(...Ramp.cap)
@@ -56,6 +59,7 @@ struct FieldApp: App {
                 ContentBlocking.shared.prepare()
                 Guarded.load()
             }
+            if !welcomed { browser.arrivals.welcome(showing: true) }
             if welcomed, !Baseline.isOn, !SuggestionFixture.isOn { browser.start() }
         }
     }
@@ -72,7 +76,10 @@ struct FieldApp: App {
         welcomed = true
         answered = true
         welcomeGone = true
-        AfterCommit.run { [browser] in browser.start() }
+        AfterCommit.run { [browser] in
+            browser.start()
+            browser.arrivals.welcome(showing: false)
+        }
     }
 }
 

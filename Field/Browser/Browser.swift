@@ -1,3 +1,4 @@
+import FieldKit
 import SwiftUI
 import UIKit
 
@@ -18,6 +19,8 @@ import UIKit
     var tab: Tab { tabs.current }
     let bar = BarState()
     let toaster = Toaster()
+    /// Links from other apps, held until the browser has started.
+    let arrivals = Arrivals()
     /// The whole page, as a file to share or the screenshot's Full Page (Field/Capture).
     let capture: Capture
     /// The field is up and focused, over the page, in place of the bar.
@@ -30,6 +33,9 @@ import UIKit
     /// (FieldSurface), so it never shows through the welcome's going.
     private(set) var fieldBehindWelcome = false
     var settingsShown = false
+    /// The strip's next move to your tabs is a cut, under Private's shade,
+    /// not the slide (see open(incoming:)). Read once by StageView.
+    @ObservationIgnored var cutToEveryday = false
 
     @ObservationIgnored private var started = false
     @ObservationIgnored private var unlocked: (any NSObjectProtocol)?
@@ -55,6 +61,8 @@ import UIKit
         everyday.finished = { [saved] in saved.opened($0) }
         capture.page = { [weak self] in self?.tab }
         capture.isPrivate = { [weak self] in self?.privately ?? false }
+        arrivals.open = { [weak self] in self?.open(incoming: $0) }
+        arrivals.announce = { [toaster] in toaster.show($0) }
     }
 
     /// A blank tab, not yet started: the surface is the field from the first
@@ -79,6 +87,7 @@ import UIKit
         }
         Task { await history.load() }
         Task { await saved.load() }
+        arrivals.restored()
         // Launched before the phone's first unlock, the file can't be read
         // yet; try again once it can, until a load has worked.
         unlocked = NotificationCenter.default.addObserver(
@@ -193,10 +202,50 @@ import UIKit
         if fresh { openField() }
     }
 
-    func leavePrivate() {
+    /// `underShade`: Private's shade stays over the strip while it cuts to
+    /// your tabs, and goes once that frame is on its way, so nothing private
+    /// shows through its fade.
+    func leavePrivate(underShade: Bool = false) {
         closeField()
         privately = false
-        gate.left()
+        guard underShade else { return gate.left() }
+        cutToEveryday = true
+        gate.left(underShade: true)
+    }
+
+    // MARK: - links from other apps
+
+    /// A link from another app (Arrivals), already checked and cleaned: in
+    /// a tab of your own, shown, as FieldKit's LinkRoute decides. Never in
+    /// Private, and never past its lock.
+    func open(incoming url: URL) {
+        let side: LinkRoute.Side = !privately ? .everyday : gate.shadeShown ? .privateCovered : .privateShown
+        let route = LinkRoute(side: side, fieldOpen: fieldOpen, gridShown: everyday.gridShown,
+                              currentBlank: everyday.current.url == nil)
+        // A sheet over the browser (Settings, Saved) gives way to the page.
+        let window = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+        window?.rootViewController?.presentedViewController?.dismiss(animated: route.leave != .underShade)
+        if route.closeField { closeField() }
+        switch route.leave {
+        case .stay: break
+        case .slide: leavePrivate()
+        case .underShade: leavePrivate(underShade: true)
+        }
+        let tab: Tab
+        switch route.into {
+        case .blankTab:
+            // As Go from its field.
+            tab = everyday.current
+            tab.load(url)
+            tab.build()
+        case .newTab:
+            tab = everyday.newTab(url)
+        }
+        switch route.grid {
+        case .none: break
+        case .close: everyday.hideGrid(selecting: tab)
+        case .closeAtOnce: everyday.hideGrid(selecting: tab, now: true)
+        }
     }
 
     /// The hooks everyday tabs have, less Saved's `finished`.

@@ -162,12 +162,14 @@ import os
         stage?.openGrid()
     }
 
-    /// A card grows into the page: `tab`'s, or the current one's.
-    func hideGrid(selecting tab: Tab? = nil) {
+    /// A card grows into the page: `tab`'s, or the current one's. `now`:
+    /// no motion, for a grid that's off screen (a link from another app,
+    /// while Private is in front).
+    func hideGrid(selecting tab: Tab? = nil, now: Bool = false) {
         guard gridShown else { return }
         gridShown = false
         let tab = tab ?? current
-        if let stage { stage.closeGrid(selecting: tab) } else { select(tab) }
+        if let stage { stage.closeGrid(selecting: tab, now: now) } else { select(tab) }
     }
 
     /// The grid's + : a blank page and the field, as the grid goes.
