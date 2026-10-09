@@ -63,6 +63,9 @@ struct SettingsView: View {
                     Segmented(options: [(7, "1 week"), (14, "2 weeks"), (30, "1 month")], selection: $staleDays)
                 }
                 section("Private") { PrivateSettingsSection() }
+                #if FIELD_DEFAULT_BROWSER
+                section("Default browser") { DefaultBrowserSection() }
+                #endif
                 section("About") { About() }
             }
             .foregroundStyle(Palette.ink)

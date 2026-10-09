@@ -208,6 +208,34 @@ final class IncomingLinksTests: XCTestCase {
         XCTAssertEqual(tabCount(app), "1")
     }
 
+    // MARK: - Settings
+
+    /// Settings › Default browser, only in a build with the entitlement
+    /// (project.default-browser.yml): a note saying where links open, and a
+    /// row that takes you to the system's choice.
+    @MainActor func testDefaultBrowserRow() async throws {
+        let app = launch()
+        app.element("bar.tabs").tap()
+        let gear = try app.required("tabs.settings")
+        try await Task.sleep(for: .seconds(1.2))
+        gear.tap()
+        XCTAssert(app.element("settings").waitForExistence(timeout: 3))
+        let row = app.element("settings.defaultBrowser")
+        for _ in 0..<5 where !(row.exists && row.isHittable) { app.element("settings").swipeUp() }
+        #if FIELD_DEFAULT_BROWSER
+        XCTAssert(row.waitForExistence(timeout: 2), "no Default browser row")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Settings, Default browser"
+        shot.lifetime = .keepAlways
+        add(shot)
+        row.tap()
+        let system = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssert(system.wait(for: .runningForeground, timeout: 5), "the system's settings didn't open")
+        #else
+        XCTAssertFalse(row.exists, "a Default browser row without the entitlement")
+        #endif
+    }
+
     // MARK: -
 
     /// A look chosen, which Continue waits for, then Continue.
