@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T02:28:06Z",
+  "date": "2026-10-09T18:35:20Z",
   "converter": "SafariConverterLib 4.3.0",
   "safariVersion": "26.0",
   "tools": [
@@ -204,7 +204,7 @@
         "easyprivacy"
       ],
       "rules": 60003,
-      "sha256": "dddebf2f05b1c0d66e13667acbf6dcd367a8487590edbbf13757fbf3791986a8",
+      "sha256": "359d23543124fefc2cf18c74662a09bea8657ed61061653f47d92d63c711a8e3",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     },
@@ -228,7 +228,7 @@
         "easyprivacy"
       ],
       "rules": 60001,
-      "sha256": "d0d475c5b9c1e788bc21be6ef0565afa25da430cff00e43f83dfc292c9cf2b47",
+      "sha256": "0faa720d0786abe5f1a03971b5a77df04c81486b9385184caafec28b21899e0e",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     },
@@ -251,8 +251,8 @@
         "easylist",
         "easyprivacy"
       ],
-      "rules": 52578,
-      "sha256": "259583bc456571d870ae83dd90a4ad1b9f0652dfec39e03740c763dc5bec6419",
+      "rules": 51577,
+      "sha256": "1edab043098d9b7c2454a2863782c70c1099dcd9913d92c5aa1ae3b57d7aa977",
       "listVersion": "2026.0930.1515.06",
       "expires": "8 hours"
     }

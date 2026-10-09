@@ -99,8 +99,10 @@ echo "Sorting domains"
 uv run --quiet --script scripts/lists/domains.py "$work" "$work/domains" "$domain_list_rules"
 domains_version=$(grep -m1 -i '^! Version:' "$work/domains-pro.src.txt" | sed 's/^! Version: *//')
 domains_expires=$(grep -m1 -i '^! Expires:' "$work/domains-pro.src.txt" | sed 's/^! Expires: *//')
-# HaGeZi's domains, less what EasyList and EasyPrivacy block, with their
-# exceptions for those domains: GPL-3.0 as a whole (domains.py says why).
+# HaGeZi's domains, less what EasyList and EasyPrivacy block or make
+# exceptions for: GPL-3.0, HaGeZi's licence. EasyList and EasyPrivacy are
+# listed as sources since they decide what's left out; none of their text
+# is in these lists (domains.py says why).
 for file in "$work"/domains-[0-9]*.txt; do
     lists+=("$(basename "$file" .txt) GPL-3.0-only $(jq -c '. + ["easylist", "easyprivacy"]' <<<"$hagezi_sources")")
 done

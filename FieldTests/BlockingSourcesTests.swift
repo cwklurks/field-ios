@@ -88,6 +88,35 @@ struct BlockingSourcesTests {
         #expect(manifest.tools.allSatisfy { $0.sha256.count == 64 })
     }
 
+    /// A domain list is HaGeZi's domains and Field's own rules, so its only
+    /// exceptions are the allowlist's and the one build.sh adds so a page
+    /// itself always opens. None come from EasyList or EasyPrivacy.
+    @Test func domainListsHaveNoExceptionsButFieldsOwn() throws {
+        let manifest = try manifest, directory = try directory
+        let allowlist = try String(
+            contentsOf: sources.deletingLastPathComponent().appending(path: "allowlist.txt"), encoding: .utf8
+        )
+        // Each allowlisted host as it appears in a converted url-filter.
+        let hosts = allowlist.split(separator: "\n").compactMap { line in
+            line.firstMatch(of: /^@@\|\|([a-z0-9.-]+)/).map { $0.1.replacing(".", with: "\\.") }
+        }
+        let domainLists = manifest.lists.filter { $0.name.hasPrefix("domains-") }
+        #expect(!domainLists.isEmpty)
+        for list in domainLists {
+            let json = try Gzip.inflate(Data(contentsOf: directory.appendingPathComponent(list.file)))
+            let rules = try #require(JSONSerialization.jsonObject(with: json) as? [[String: [String: Any]]])
+            let foreign = rules.filter { rule in
+                guard rule["action"]?["type"] as? String == "ignore-previous-rules" else { return false }
+                let trigger = rule["trigger"] ?? [:]
+                let filter = trigger["url-filter"] as? String ?? ""
+                let page = filter == ".*" && trigger["resource-type"] as? [String] == ["document"]
+                    && trigger["load-context"] as? [String] == ["top-frame"]
+                return !page && !hosts.contains { filter.contains($0) }
+            }
+            #expect(foreign.isEmpty, "\(list.name) has \(foreign.count) exceptions that aren't Field's")
+        }
+    }
+
     /// The copies in the repository are the ones recorded, and the record
     /// the app ships is the repository's.
     @Test func theSourcesAreInTheRepository() throws {

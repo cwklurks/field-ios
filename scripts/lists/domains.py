@@ -15,11 +15,12 @@ domain lists), and from scripts/lists: protected.txt, allowlist.txt, extra.txt.
   smetrics.example.com.
 - A protected domain (protected.txt, e.g. google.com) and a public suffix
   are never blocked whole, only named subdomains of them.
-- EasyList and EasyPrivacy exceptions for a domain blocked here come along,
-  since a WebKit list's exceptions only reach its own rules. That's also why
-  they can't go in a file of their own. HaGeZi's lists are GPL-3.0, and
-  EasyList offers GPL-3.0-or-later as well as CC BY-SA, so the exceptions
-  are used under the GPL here and each domain list is GPL-3.0 as a whole.
+- A domain EasyList or EasyPrivacy make an exception for, or one it's
+  under, is left out too, and blocking it is left to them: a WebKit list's
+  exceptions only reach its own rules, and theirs come with their own
+  lists. A domain below one of those hosts is still blocked here. None of
+  their rules are copied, so a domain list is HaGeZi's domains and Field's
+  own rules only.
 """
 import json
 import re
@@ -90,6 +91,19 @@ for source in sorted(work.glob("domains-*.src.txt")):
 dropped = sorted(d for d in wanted if d in protected or is_suffix(d))
 wanted -= set(dropped)
 wanted -= allowed
+
+# Each host EasyList and EasyPrivacy make an exception for, and every domain
+# it's under. Before the subdomain step, so a subdomain of one of these that
+# isn't itself excepted is still blocked by its own rule.
+cosmetic = re.compile(r"\$.*\b(elemhide|generichide|specifichide|genericblock)\b")
+excepted = set()
+for name in ("easylist.txt", "easyprivacy.txt"):
+    for line in lines(work / name):
+        m = exception_host.match(line)
+        if m and not cosmetic.search(line):
+            excepted |= set(ancestors(m.group(1)))
+left_to_easylist = sorted(d for d in wanted if d in excepted)
+wanted -= set(left_to_easylist)
 # A subdomain of a domain that's already blocked adds nothing.
 wanted = {d for d in wanted if not any(a in wanted for a in ancestors(d)[1:])}
 
@@ -112,33 +126,20 @@ before = len(wanted)
 wanted = sorted(d for d in wanted if not covered(d))
 covered_count = before - len(wanted)
 
-blocked = set(wanted)
-# Every domain a blocked one is under, to find exceptions for a parent domain.
-under = {a for d in blocked for a in ancestors(d)}
-cosmetic = re.compile(r"\$.*\b(elemhide|generichide|specifichide|genericblock)\b")
-exceptions = set()
-for name in ("easylist.txt", "easyprivacy.txt"):
-    for line in lines(work / name):
-        m = exception_host.match(line)
-        if not m or cosmetic.search(line):
-            continue
-        host = m.group(1)
-        if host in under or any(a in blocked for a in ancestors(host)):
-            exceptions.add(line)
-exceptions = sorted(exceptions)
-
 
 def rule(domain):
     return f"||{domain}^$third-party" if registrable(domain) == domain else f"||{domain}^"
 
 
 blocks = extra + [rule(d) for d in wanted]
-tail = exceptions + allowed_rules
+tail = allowed_rules
 size = per_list - len(tail)
 chunks = [blocks[i:i + size] for i in range(0, len(blocks), size)]
 for i, chunk in enumerate(chunks, 1):
     Path(f"{prefix}-{i}.txt").write_text("\n".join(chunk + tail) + "\n")
 
-print(f"  {before + len(dropped)} domains after merging; dropped {len(dropped)} protected or public suffixes"
-      f" ({', '.join(dropped[:12])}{'…' if len(dropped) > 12 else ''}); {covered_count} already in EasyList or"
-      f" EasyPrivacy; {len(wanted)} left in {len(chunks)} lists, with {len(exceptions)} EasyList exceptions")
+merged = before + len(dropped) + len(left_to_easylist)
+print(f"  {merged} domains after merging; dropped {len(dropped)} protected or public suffixes"
+      f" ({', '.join(dropped[:12])}{'…' if len(dropped) > 12 else ''}); left {len(left_to_easylist)} to EasyList"
+      f" for its exceptions; {covered_count} already in EasyList or EasyPrivacy; {len(wanted)} left in"
+      f" {len(chunks)} lists")
