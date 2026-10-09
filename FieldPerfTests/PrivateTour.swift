@@ -104,7 +104,7 @@ final class PrivateTour: XCTestCase {
         XCTAssert(app.element("private.limits").waitForExistence(timeout: 3), "one tap didn't open the list")
         try await pause(2)
         // Done: back to the tab with the field closed, and no keyboard left
-        // over it with nothing to type into (polish-6 P6-14).
+        // over it with nothing to type into.
         app.buttons["Done"].firstMatch.tap()
         try await pause(2)
         XCTAssertFalse(app.keyboards.firstMatch.exists, "a keyboard came back with the list's Done")
