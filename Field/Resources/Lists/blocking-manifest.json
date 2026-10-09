@@ -1,21 +1,184 @@
 {
-  "date": "2026-09-30T19:18:08Z",
+  "date": "2026-10-09T02:28:06Z",
   "converter": "SafariConverterLib 4.3.0",
   "safariVersion": "26.0",
+  "tools": [
+    {
+      "name": "ConverterTool",
+      "version": "4.3.0",
+      "sha256": "6687be9f1a77abd5299299086c5fbffd0d1b5baec755eb4808aa2f53e275d3c0",
+      "url": "https://github.com/AdguardTeam/SafariConverterLib/releases/download/v4.3.0/ConverterTool"
+    },
+    {
+      "name": "swift-psl",
+      "revision": "7ccee9d576d4ca45219440e346f61117f44c816f",
+      "sha256": "2149891298bc325fda28717bf7731d629dfb1ddb1f9feb90b41127f5aace01e3",
+      "url": "https://github.com/ameshkov/swift-psl/tree/7ccee9d576d4ca45219440e346f61117f44c816f/Sources/PublicSuffixList/Resources"
+    }
+  ],
+  "sources": [
+    {
+      "name": "easylist",
+      "file": "easylist.txt.gz",
+      "url": "https://easylist.to/easylist/easylist.txt",
+      "revision": "2c814c6a145c3047aa1080fb3a238021fbdc71c3",
+      "version": "202609301850",
+      "sha256": "91069543332d7d793a816fb8bba24bb8481edf83bc0af3ae36828b488bba288c",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-or-later OR CC-BY-SA-3.0+"
+    },
+    {
+      "name": "easyprivacy",
+      "file": "easyprivacy.txt.gz",
+      "url": "https://easylist.to/easylist/easyprivacy.txt",
+      "revision": "2c814c6a145c3047aa1080fb3a238021fbdc71c3",
+      "version": "202609301850",
+      "sha256": "e34429f1a508cbbac574659601435a7f6d646484dc9c7f558fcf86c4be5ecb03",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-or-later OR CC-BY-SA-3.0+"
+    },
+    {
+      "name": "hagezi-pro",
+      "file": "hagezi-pro.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "revision": null,
+      "version": "2026.0930.1515.06",
+      "sha256": "2f1d468c110bece4c82dd74bad8337a225c89a7954b80f1fbac52b187128f611",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.apple",
+      "file": "hagezi-native.apple.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.apple.txt",
+      "revision": null,
+      "version": "2026.0927.2026.05",
+      "sha256": "337a9c25d42ea87deb1e99f4443d56b0cd3d794fd5be0f7d6581e6347c514cfe",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.amazon",
+      "file": "hagezi-native.amazon.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.amazon.txt",
+      "revision": null,
+      "version": "2026.0927.2027.13",
+      "sha256": "df3040c6df461321f4f09c559bb0ca605a8703feaa35abb0a4536190fcf5a6c1",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.huawei",
+      "file": "hagezi-native.huawei.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.huawei.txt",
+      "revision": null,
+      "version": "2026.0927.2029.45",
+      "sha256": "8603924dbfe460128933b1f1dbf0c60d59bbbd1fd4f90808a78c3a286178903b",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.samsung",
+      "file": "hagezi-native.samsung.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.samsung.txt",
+      "revision": null,
+      "version": "2026.0927.2038.19",
+      "sha256": "693ae602bb5d97feb1050f265b6b96594d1efd6d9070d7225ffd7cb3664cd501",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.tiktok",
+      "file": "hagezi-native.tiktok.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.tiktok.txt",
+      "revision": null,
+      "version": "2026.0927.2030.46",
+      "sha256": "aa528cab2ff3bef85283c3bac6521d59668719db70109aa09911bd5b82e777ef",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.xiaomi",
+      "file": "hagezi-native.xiaomi.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.xiaomi.txt",
+      "revision": null,
+      "version": "2026.0927.2037.15",
+      "sha256": "1ec9d10373e72a32b011bcc84d0f61db7076c1008371628c2334426a59958665",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.oppo-realme",
+      "file": "hagezi-native.oppo-realme.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.oppo-realme.txt",
+      "revision": null,
+      "version": "2026.0930.0450.06",
+      "sha256": "b4fe5c59e81e02c867ee1b843396ce7338e7e87e655bc4c4bca1cd3dbab00b60",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.vivo",
+      "file": "hagezi-native.vivo.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.vivo.txt",
+      "revision": null,
+      "version": "2026.0927.2035.19",
+      "sha256": "1b49b78b7ff6c5348a94db89ab5831e8bc822f588aaefb01c0e4d4665ad1402b",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.lgwebos",
+      "file": "hagezi-native.lgwebos.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.lgwebos.txt",
+      "revision": null,
+      "version": "2026.0927.2033.25",
+      "sha256": "cb3ce7322ae245127cb1fbc50e82ee28ae0cf7565f26a78b56ffd408968b8987",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    },
+    {
+      "name": "hagezi-native.roku",
+      "file": "hagezi-native.roku.txt.gz",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/native.roku.txt",
+      "revision": null,
+      "version": "2026.0927.2034.34",
+      "sha256": "73126fea14cad32136f3c5a53271b2337137313123a94d5c8df6244e19c2d474",
+      "fetched": "2026-09-30T19:18:03Z",
+      "licence": "GPL-3.0-only",
+      "note": "Fetched from main. HaGeZi rewrote the repository history on 2026-10-01, so the commit is gone upstream; this copy is the source."
+    }
+  ],
   "lists": [
     {
       "name": "easylist",
       "file": "easylist.json.gz",
-      "source": "https://easylist.to/easylist/easylist.txt",
+      "licence": "CC-BY-SA-3.0",
+      "sources": [
+        "easylist"
+      ],
       "rules": 59670,
-      "sha256": "478df7aa71b2df0f568ec868bb4ff0d07e144b8147446e9f79025929eb2aa1a7",
+      "sha256": "2ddfcad3f743ed222c5cec975dd288c8487e4e56ca5771ebcc5faaadf7b65f76",
       "listVersion": "202609301850",
       "expires": "4 days (update frequency)"
     },
     {
       "name": "easyprivacy",
       "file": "easyprivacy.json.gz",
-      "source": "https://easylist.to/easylist/easyprivacy.txt",
+      "licence": "CC-BY-SA-3.0",
+      "sources": [
+        "easyprivacy"
+      ],
       "rules": 56214,
       "sha256": "72e613343ca7bcbdbed58fb315d316bb88dd152dd559d432dfdfcb4b5d715bca",
       "listVersion": "202609301850",
@@ -24,7 +187,22 @@
     {
       "name": "domains-1",
       "file": "domains-1.json.gz",
-      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "licence": "GPL-3.0-only",
+      "sources": [
+        "hagezi-pro",
+        "hagezi-native.apple",
+        "hagezi-native.amazon",
+        "hagezi-native.huawei",
+        "hagezi-native.samsung",
+        "hagezi-native.tiktok",
+        "hagezi-native.xiaomi",
+        "hagezi-native.oppo-realme",
+        "hagezi-native.vivo",
+        "hagezi-native.lgwebos",
+        "hagezi-native.roku",
+        "easylist",
+        "easyprivacy"
+      ],
       "rules": 60003,
       "sha256": "dddebf2f05b1c0d66e13667acbf6dcd367a8487590edbbf13757fbf3791986a8",
       "listVersion": "2026.0930.1515.06",
@@ -33,7 +211,22 @@
     {
       "name": "domains-2",
       "file": "domains-2.json.gz",
-      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "licence": "GPL-3.0-only",
+      "sources": [
+        "hagezi-pro",
+        "hagezi-native.apple",
+        "hagezi-native.amazon",
+        "hagezi-native.huawei",
+        "hagezi-native.samsung",
+        "hagezi-native.tiktok",
+        "hagezi-native.xiaomi",
+        "hagezi-native.oppo-realme",
+        "hagezi-native.vivo",
+        "hagezi-native.lgwebos",
+        "hagezi-native.roku",
+        "easylist",
+        "easyprivacy"
+      ],
       "rules": 60001,
       "sha256": "d0d475c5b9c1e788bc21be6ef0565afa25da430cff00e43f83dfc292c9cf2b47",
       "listVersion": "2026.0930.1515.06",
@@ -42,7 +235,22 @@
     {
       "name": "domains-3",
       "file": "domains-3.json.gz",
-      "source": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt",
+      "licence": "GPL-3.0-only",
+      "sources": [
+        "hagezi-pro",
+        "hagezi-native.apple",
+        "hagezi-native.amazon",
+        "hagezi-native.huawei",
+        "hagezi-native.samsung",
+        "hagezi-native.tiktok",
+        "hagezi-native.xiaomi",
+        "hagezi-native.oppo-realme",
+        "hagezi-native.vivo",
+        "hagezi-native.lgwebos",
+        "hagezi-native.roku",
+        "easylist",
+        "easyprivacy"
+      ],
       "rules": 52578,
       "sha256": "259583bc456571d870ae83dd90a4ad1b9f0652dfec39e03740c763dc5bec6419",
       "listVersion": "2026.0930.1515.06",
