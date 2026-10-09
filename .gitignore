@@ -9,3 +9,9 @@ DerivedData/
 build/
 __pycache__/
 *.pyc
+
+# tor, fetched and checked by scripts/tor/fetch.sh.
+CTor/Artifacts/
+
+# Local Tor review logs, build products and clean-checkout fixtures.
+.review/
