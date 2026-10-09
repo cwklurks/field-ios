@@ -1,7 +1,7 @@
 import XCTest
 
 /// Not a measurement: Private and Capture wired into the browser
-/// (docs/integration/private.md and capture.md), one test each, at a pace a
+/// (docs/PLAN.md, "Private space" and "Capture"), one test each, at a pace a
 /// recording can follow, with touch marks on. Run one at a time with a
 /// recording going. Face ID has to be enrolled on the simulator first; a
 /// test prints "FACE ID NOW" when it wants a match.

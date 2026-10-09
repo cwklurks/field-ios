@@ -89,7 +89,8 @@ Smoothness is checked on the iPhone 17 (120 Hz) in a Release build, with Instrum
 - **Blocking.**
   - Lists: EasyList + EasyPrivacy (via AdGuard's SafariConverterLib) plus HaGeZi Multi PRO and native-tracker domain lists, about 288k rules in five lists; 100% on adblock.turtlecute.org with no breakage on 18 major sites. SafariConverterLib is GPL-3, but it runs at build time and never ships in the app.
   - Compilation: the gzipped JSON ships in the app and compiles once in the background on first launch (about 2.5 s on a fast chip, not on the first-paint path). After that, `lookUp` loads it in about 0.2 ms.
-  - Per-site off switch: add or remove the lists on that tab's content controller, as the Mac's `Shield.swift` does.
+  - Per-site off switch: add or remove the lists on that tab's content controller, as the Mac's `Shield.swift` does. It's kept by registrable domain (UserDefaults `shield.off`), and the navigation guard reads the same switch. When the lists stop a page itself, it offers "Load anyway", which loads that one navigation without them.
+  - The one main-thread cost is WebKit parsing a new list before it compiles (43–61 ms per list on the simulator), only on the first launch after the lists change. Each parse waits for a lull (`Lull`): the app in front, no keyboard, the run loop idle. `-FieldBlockingProbe YES` logs the times.
   - v1 lists refresh with each build, not over the network.
 - **Navigation guard** (main frame, in `decidePolicyFor`), in order:
   1. scheme gate
@@ -102,10 +103,16 @@ Smoothness is checked on the iPhone 17 (120 Hz) in a Release build, with Instrum
 
   Script popups become a small "Popup blocked" chip. Every step is a hash lookup plus at most one cancel-and-reload.
 - **Private space.** One non-persistent data store per private session (sign-ins work across its tabs) and an ephemeral `URLSession` for its favicons. Its tab list and thumbnails live only in memory. Wiping it tears down the web views, removes all website data, drops the store and purges temporary files, inside a background task.
+  - The cover goes up on the scene's own deactivate and background notifications, on the posting thread, so it's in place before UIKit takes the switcher's snapshot (`PrivateGateTests`).
+  - Known gaps: a page can still open a `WebTransport` from a dedicated worker, since user scripts don't run in workers. WebKit's own Copy and Share use the general pasteboard, which Field can't mark local-only; the limits screen says so.
+- **Capture.** "Capture Page" on the address's long press makes a PDF of what's already loaded (`WKWebView.pdf()`, no network), or an image drawn from it, at most 16,384 px on the long side. The system screenshot also offers Full Page, except in Private. Images a page lazy-loads that were never scrolled into view stay as placeholders.
 - **Tidy.**
   - Engine: `SystemLanguageModel` when it's available and supports the language. Otherwise `NLEmbedding` clustering plus same-site heuristics.
   - Results: a preview sheet (rename, move, uncheck), then Apply with Undo. Tabs the model refuses fall back one by one.
   - Private tabs are never included.
+  - Without the model, the rules compare the nouns of each title, with the site's name cut, as averaged word vectors (`TidyVectors`). On two sets of realistic tabs, 88% and 77% of the pairs they grouped were right, against 19% and 45% for whole-title sentence vectors. The same-site pass uses the registrable domain, so Gmail and Google Flights both group as "Google".
+  - Foundation Models doesn't run in the iOS 27 simulator, so there only the rules are seen. `-FieldTidyHarness YES` runs the flow over a stand-in grid.
+  - A tab untouched for 7, 14 (the default) or 30 days is stale (Settings › Tabs untouched for). The grid offers to review or close stale tabs, and never closes one without a tap.
 
 ## Milestones
 

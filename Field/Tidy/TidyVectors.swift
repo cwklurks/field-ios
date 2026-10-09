@@ -7,7 +7,7 @@ import NaturalLanguage
 /// average of their word vectors. Whole-title sentence vectors put
 /// unrelated tabs together far too often: on two sets of realistic tabs,
 /// 19% and 45% of the pairs they grouped were right, against 88% and 77%
-/// for this, at the same cut (docs/integration/tidy.md, "The fallback").
+/// for this, at the same cut (docs/PLAN.md, "Tidy").
 /// A title with no noun the model knows has no vector, and stays loose.
 nonisolated final class TidyVectors {
     private let words: NLEmbedding?

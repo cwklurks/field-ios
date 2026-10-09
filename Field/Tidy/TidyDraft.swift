@@ -107,7 +107,7 @@ import SwiftUI
 
 /// Apply and Undo. Apply sets the new grouping at once and offers Undo in a
 /// toast; Undo puts the grouping from before back as it was. The grouping
-/// is Tabs' (docs/integration/tidy.md), reached through these closures.
+/// is Tabs', reached through these closures.
 @MainActor final class TidyFlow {
     private let grouping: () -> Session.Grouping
     private let regroup: (Session.Grouping) -> Void
