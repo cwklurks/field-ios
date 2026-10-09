@@ -110,7 +110,7 @@ final class SurfaceBackground: UIView {
             effect.tintColor = Palette.UI.ground.resolvedColor(with: traits).withAlphaComponent(0.6)
             // A new view in the new tone, not the old one changed: glass
             // changed in place keeps its old look for a few frames, and a
-            // field opening into Private rose light (polish-6 P6-01).
+            // field opening into Private rose light.
             let glass = UIVisualEffectView(effect: nil)
             glass.frame = old.frame
             glass.autoresizingMask = old.autoresizingMask

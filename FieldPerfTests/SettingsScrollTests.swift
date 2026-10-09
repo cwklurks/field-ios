@@ -1,7 +1,7 @@
 import XCTest
 
-/// Settings must keep its place when "What Private can't do" is dismissed
-/// (P6-10): the list opens over Settings scrolled down to Private, and the
+/// Settings must keep its place when "What Private can't do" is dismissed:
+/// the list opens over Settings scrolled down to Private, and the
 /// "When you leave" label must not move when the list goes.
 final class SettingsScrollTests: XCTestCase {
     @MainActor func testSettingsKeepsItsPlaceAfterLimitsInLight() async throws {

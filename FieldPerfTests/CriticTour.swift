@@ -1,7 +1,7 @@
 import Network
 import XCTest
 
-/// Not a measurement: the polish review's interactions (docs/review/), one
+/// Not a measurement: the core interactions (docs/motion.md), one
 /// test each, at a pace a recording can follow, with touch marks on. Run one
 /// at a time with a recording going. CRITIC_LOOK picks the bar's look and
 /// CRITIC_MODE the app's (light, dark or system).

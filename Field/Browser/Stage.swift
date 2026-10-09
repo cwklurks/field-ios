@@ -454,7 +454,7 @@ final class Stage: UIView {
         beginInterval("tab.switch")
         // The bar says where the page is going as it sets off, and grows
         // back from the pill alongside it: one motion, not a second one
-        // once the spring's long tail has landed (bar-polish B-02).
+        // once the spring's long tail has landed.
         tabs.heading(by: step)
         if step != 0 { bar.expand() }
         let speed = Swipe.relative(velocity: velocity, from: offset, to: target)

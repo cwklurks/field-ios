@@ -286,7 +286,7 @@ import UIKit
 
 /// Cards in two columns under their groups' names, the stale banner on top
 /// and the bottom row with the Tidy button: the grid, roughly, as
-/// docs/integration/tidy.md asks for it.
+/// docs/PLAN.md ("Screens") describes it.
 private struct BoardView: View {
     let board: Board
     let toaster: Toaster

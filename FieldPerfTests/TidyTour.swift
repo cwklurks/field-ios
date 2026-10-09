@@ -1,6 +1,6 @@
 import XCTest
 
-/// Not a measurement: Tidy wired into the grid (docs/integration/tidy.md),
+/// Not a measurement: Tidy wired into the grid (docs/PLAN.md, "Tidy"),
 /// at a pace a recording can follow, with touch marks on. On the simulator
 /// the model can't run, so what's seen is the rules' grouping.
 final class TidyTour: XCTestCase {

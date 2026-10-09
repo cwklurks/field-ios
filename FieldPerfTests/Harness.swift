@@ -2,7 +2,7 @@ import XCTest
 
 /// How the perf tests launch Field and find what they measure. The launch
 /// arguments, identifiers and signpost names are the contract in
-/// docs/m1-contracts.md.
+/// docs/perf.md, "Launch arguments and identifiers".
 ///
 /// Two things about the metrics shape every test here:
 /// - XCTOSSignpostMetric reports only the first matching interval in each
@@ -47,7 +47,7 @@ extension XCUIApplication {
     @MainActor func required(_ id: String, timeout: TimeInterval = 5) throws -> XCUIElement {
         let element = element(id)
         guard element.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("No \"\(id)\" element yet (docs/m1-contracts.md, accessibility identifiers).")
+            throw XCTSkip("No \"\(id)\" element yet (docs/perf.md, launch arguments and identifiers).")
         }
         return element
     }

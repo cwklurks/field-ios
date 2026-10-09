@@ -1,7 +1,7 @@
 import XCTest
 
-/// Not a measurement: M4 wired into the browser (docs/integration/saved.md,
-/// "After wiring, on video"), one test each, at a pace a recording can
+/// Not a measurement: M4 wired into the browser (docs/motion.md,
+/// "How to check it"), one test each, at a pace a recording can
 /// follow, with touch marks on. Run one at a time with a recording going.
 final class SavedTour: XCTestCase {
     @MainActor private func launch(_ extra: [String]) -> XCUIApplication {

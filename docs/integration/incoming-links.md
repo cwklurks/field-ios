@@ -6,7 +6,7 @@ A link tapped in Mail, Messages or Notes, once Field is the default browser (doc
 
 `.onOpenURL` on the window's root view in `Field/FieldApp.swift` hands every link to `Arrivals` (`Field/Browser/Arrivals.swift`). Under the SwiftUI `App` lifecycle that one modifier also gets the link a cold launch was started for: SwiftUI reads the scene's URL contexts when it connects and calls `onOpenURL` with them, so there is no scene delegate. `IncomingLinksTests.testCold…` show it: `XCUIApplication.open(_:)` ends the running app and launches it with the link, and the link opens in the new process.
 
-`http` and `https` are declared under `CFBundleURLTypes` in `Field/Info.plist`, as Apple asks of a browser. Debug builds also declare `field-test` for the UI tests (docs/m1-contracts.md).
+`http` and `https` are declared under `CFBundleURLTypes` in `Field/Info.plist`, as Apple asks of a browser. Debug builds also declare `field-test` for the UI tests (docs/perf.md, "Launch arguments and identifiers").
 
 ## Checked at the door
 

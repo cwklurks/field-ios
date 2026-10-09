@@ -26,7 +26,7 @@ nonisolated struct TidySuggestion: Sendable, Equatable {
 /// that tab goes to the rules. Its own actor, so none of it runs on the main
 /// thread; cancelling the task that reads `stream` stops it.
 ///
-/// Private tabs are never passed in (docs/integration/tidy.md); only web
+/// Private tabs are never passed in (docs/PLAN.md, "Tidy"); only web
 /// pages are sent at all, so a blank tab or a data: page never is.
 actor TidyEngine {
     static let shared = TidyEngine()

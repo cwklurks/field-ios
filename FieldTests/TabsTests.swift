@@ -84,7 +84,7 @@ struct TabsTests {
 
     /// A swipe on the bar that sets off for a neighbour has the bar say that
     /// neighbour's host at once, not when the spring lands; turned back, or
-    /// landed, it says the tab on screen (bar-polish B-02).
+    /// landed, it says the tab on screen.
     @Test func aSwipeSaysWhereItsGoingUntilItLands() {
         let t = tabs(Session.Shape(tabs: [entry("https://a.com/"), entry("https://b.com/")], active: 0))
         t.heading(by: 1)
