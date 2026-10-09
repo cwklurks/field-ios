@@ -1,5 +1,9 @@
 # Notices
 
+Field's own code is under the Mozilla Public License 2.0, in LICENSE. The
+work below is other people's and keeps its own licence. The full texts of
+the GPL and the Apache License are in LICENSES/.
+
 Field includes code adapted from **Search** by Office Commun
 (https://github.com/driceroland/Search), under the MIT License below. Files adapted
 from it say so in their first lines.
@@ -33,19 +37,25 @@ these lists, unmodified apart from a `_meta` header with the source, the date
 fetched and the licence. `scripts/guard/update.sh` fetches them.
 
 - **Brave query filter and debounce lists** (`brave-query-filter.json`,
-  `brave-debounce.json`), Copyright Brave Software, Inc., from
+  `brave-debounce.json`), by Brave Software, Inc., from
   https://github.com/brave/adblock-lists (brave-lists/). Mozilla Public
   License 2.0, https://mozilla.org/MPL/2.0/. The source of these files is
   the repository above and the copies in this one.
 - **DuckDuckGo tracking parameters** (`ddg-tracking-parameters.json`),
-  Copyright DuckDuckGo, Inc., from
+  Copyright 2010 Duck Duck Go, Inc., from
   https://github.com/duckduckgo/privacy-configuration (features/). Apache
-  License 2.0, https://www.apache.org/licenses/LICENSE-2.0. The file's own
-  `_meta` was replaced by ours; nothing else was changed.
+  License 2.0, https://www.apache.org/licenses/LICENSE-2.0, and in
+  LICENSES/Apache-2.0.txt. The file's own `_meta` was replaced by ours;
+  nothing else was changed.
 - **Public Suffix List** (`public-suffix-list.json`), from
   https://publicsuffix.org/list/public_suffix_list.dat, split into plain,
   wildcard and exception rules with punycode forms added. Mozilla Public
-  License 2.0, https://mozilla.org/MPL/2.0/.
+  License 2.0, https://mozilla.org/MPL/2.0/. The source of this file is the
+  list above and the copy in this repository.
+
+`amp.json` and `shims.json` in the same folder are Field's own tables,
+under the Mozilla Public License 2.0 like the rest of its code. They are
+written in the format of Brave's debounce list.
 
 ## Block lists
 
@@ -60,7 +70,7 @@ was changed. `scripts/lists/build.sh` fetches and converts them, and
   https://easylist.to/easylist/easyprivacy.txt. Dual licensed under the GNU
   General Public License, version 3 or later,
   https://www.gnu.org/licenses/gpl-3.0.html, and Creative Commons
-  Attribution-ShareAlike 3.0 Unported,
+  Attribution-ShareAlike 3.0 Unported or later,
   https://creativecommons.org/licenses/by-sa/3.0/; Field uses them under
   CC BY-SA 3.0. See https://easylist.to/pages/licence.html. The converted
   files are under the same licence.
@@ -68,7 +78,9 @@ was changed. `scripts/lists/build.sh` fetches and converts them, and
   (`ConverterTool` 4.3.0), Copyright AdGuard Software Ltd.,
   https://github.com/AdguardTeam/SafariConverterLib, under the GNU General
   Public License, version 3. It is not part of the app and is not
-  distributed with it.
+  distributed with it, or with this repository: `build.sh` downloads it.
+  The same goes for the public suffix data it reads, from **swift-psl**,
+  https://github.com/ameshkov/swift-psl, under the MIT License.
 
 ### Domain lists
 
@@ -83,6 +95,13 @@ rules. Field's own rules (extra.txt, allowlist.txt) are added to them.
   tracker lists for Apple, Amazon, Huawei, Samsung, TikTok, Xiaomi,
   Oppo/Realme, Vivo, LG webOS and Roku (`adblock/native.*.txt`), by
   HaGeZi, from https://github.com/hagezi/dns-blocklists. GNU General
-  Public License, version 3, https://www.gnu.org/licenses/gpl-3.0.html. The
+  Public License, version 3, https://www.gnu.org/licenses/gpl-3.0.html, and
+  in LICENSES/GPL-3.0.txt, which HaGeZi asks to go with every copy. The
   source of these lists is that repository; the lists as Field ships them
-  are under the same licence.
+  are under the same licence, and the scripts that make them are in
+  scripts/lists/.
+
+## Name and icon
+
+The names "Field" and "Field Browser" and the app icon are not licensed
+with the code. See TRADEMARKS.md.
