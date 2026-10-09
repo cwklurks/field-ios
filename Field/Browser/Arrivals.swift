@@ -20,6 +20,16 @@ import os
     nonisolated static let log = Logger(subsystem: "com.connork.field", category: "arrivals")
 
     func received(_ url: URL) {
+        #if DEBUG
+        // field-test://open?url=<link>, declared only in Debug (Info.plist):
+        // the UI tests' way to hand a running Field a link, since iOS sends
+        // http to the default browser and XCUIApplication.open relaunches.
+        if url.scheme == "field-test",
+           let inner = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "url" })?.value,
+           let link = URL(string: inner) {
+            return received(link)
+        }
+        #endif
         let now = inbox.received(url)
         Self.log.notice("received \(url), \(now.isEmpty ? "waiting" : "opening", privacy: .public)")
         take(now)

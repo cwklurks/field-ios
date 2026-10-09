@@ -17,6 +17,17 @@
 				<string>https</string>
 			</array>
 		</dict>
+#ifdef FIELD_TEST_SCHEME
+		<!-- Debug only: the field-test scheme (field-test:open?url=a link), the UI tests' way to hand a running Field a link, since iOS sends http to the default browser (Arrivals). -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.connork.fieldbrowser.test</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>field-test</string>
+			</array>
+		</dict>
+#endif
 	</array>
 	<!-- Pages may be plain http (a router, a dev server); the app's own requests stay https. -->
 	<key>NSAppTransportSecurity</key>

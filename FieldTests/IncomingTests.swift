@@ -101,4 +101,24 @@ import UIKit
         #expect(opened == [link, URL(string: "https://example.org/b")!])
         #expect(said == ["Field opens only web links."])
     }
+
+    /// Debug's field-test://open?url=…, for the UI tests: the link inside
+    /// goes through the same door, checks and all.
+    @Test func theTestSchemeHandsOverTheLinkInside() async throws {
+        let arrivals = Arrivals()
+        var opened: [URL] = []
+        var said: [String] = []
+        arrivals.open = { opened.append($0) }
+        arrivals.announce = { said.append($0) }
+        arrivals.restored()
+        var parts = URLComponents(string: "field-test://open")!
+        for inner in ["https://example.org/a?utm_source=mail", "javascript:alert(1)"] {
+            parts.queryItems = [.init(name: "url", value: inner)]
+            arrivals.received(parts.url!)
+        }
+        arrivals.received(URL(string: "field-test://open")!)
+        for _ in 0..<50 where said.count < 2 { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(opened == [URL(string: "https://example.org/a")!])
+        #expect(said == ["Field opens only web links.", "Field opens only web links."])
+    }
 }
