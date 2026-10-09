@@ -1,6 +1,6 @@
 # Motion and polish spec
 
-Frame-drop budgets (PLAN.md, "Smooth") are necessary but not enough. On 2026-09-27 the M1 build passed them and still felt laggy on the user's iPhone. Every UI change is checked against this file, on video.
+Frame-drop budgets (PLAN.md, "Smooth") are necessary but not enough. On 2026-09-27 the M1 build passed them and still felt laggy on a real iPhone. Every UI change is checked against this file, on video.
 
 ## Principles
 
@@ -21,16 +21,17 @@ Frame-drop budgets (PLAN.md, "Smooth") are necessary but not enough. On 2026-09-
 | **Go** | The field becomes the bar showing the new host in the same motion, and the page's loading starts at once. |
 | **Scroll** | The bar shrinks and grows with the scroll, 1:1, and settles with the finger's velocity. (Already passes: 0 hitches on device.) |
 | **Tabs (M2)** | The tab grid opens by shrinking the live page into its own card (same object), and closes by growing the chosen card into the page. Swiping the bar sideways moves the pages with the finger. |
+| **Private** | Private sits to the right of your tabs. Entering slides both grids on one glide, the everyday one out to the left and the dark one in from the right, with no crossfade; a drag follows the finger. Leaving is the same motion reversed. A locked session slides in under the lock screen, which fades after Face ID. |
 
 ## How to check it: the video loop
 
 Tests pass or fail frames; video shows choreography. After any UI change:
 
 1. Boot the simulator headless. Start `xcrun simctl io <device> recordVideo --codec h264 <file>.mp4`, drive the interaction with a UI test or a small XCUITest script, then stop the recording with SIGINT.
-2. Pull frames with ffmpeg (`-vf fps=30,crop=…,scale=…,tile=8x3`) and look at them.
+2. Pull frames with ffmpeg (`-vf fps=30,crop=…,scale=…,tile=8x3`) and look at them. To find gaps, list frames by `best_effort_timestamp_time`, sorted: these recordings leave `pts_time` out of many frames, which looks like gaps that aren't there.
    - Reject any frame showing two copies of something, a pause after a touch, or a sequence where the motion should be continuous.
    - Count frames from the touch to the first visible change: it must be 1.
 3. Keep the FieldPerf tests green: frame-drop budgets still apply.
-4. Save before-and-after strips in the scratchpad and cite them in the report.
+4. Keep before-and-after strips and show them with the change.
 
 The simulator runs at 60 Hz and its keyboard is lighter than the phone's, so the phone gets a final check after a batch of work, not after each change.

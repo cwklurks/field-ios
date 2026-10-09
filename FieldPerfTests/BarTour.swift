@@ -1,7 +1,7 @@
 import XCTest
 
 /// Not a measurement: the bar's own interactions, one test each, at a pace a
-/// recording can follow, with touch marks on (docs/review/bar-polish.md).
+/// recording can follow, with touch marks on (docs/motion.md, "How to check it").
 /// Opening and closing the field, and the bar sitting on a page: the shrink,
 /// the ring, the pill. CRITIC_LOOK and CRITIC_MODE pick the looks, as for
 /// CriticTour.

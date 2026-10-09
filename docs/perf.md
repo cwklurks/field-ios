@@ -76,6 +76,16 @@ Close other apps. Run twice, and use the second run if the first included a fres
 - **The welcome.** Choosing a look leaves the welcome up (Continue dismisses it), so each iteration relaunches with `-welcomed NO` and times a first choice, ending when the card reports itself selected.
 - **Signposts.** `Field/Perf/Signpost.swift` names them. They use subsystem `com.connork.field`, category `PointsOfInterest`. The runner's own `scroll` signposts use subsystem `com.connork.field.perftests`.
 
+## Launch arguments and identifiers
+
+The UI tests drive Field through these, so renaming one breaks them (`FieldPerfTests/Harness.swift`).
+
+- **Settings keys** work as launch arguments, in Release too: `-welcomed YES`, `-bar.look glass|solid`, `-look system|light|dark`, `-engine`, `-engine.custom` (a template with `%s`). `-welcomed NO` lands in the argument domain and hides the app's own write, so the welcome hides on the state the tap sets, not by reading the default again.
+- **Seeding**, also in Release: `-FieldOpen <url>` opens that page at launch. `-FieldSeedTabs <N>`, `-FieldSeedHistory <N>` and `-FieldSeedSaved <N>` make up tabs, history or a Saved library for the run, read from the launch arguments only, so no setting left behind stands in for real data.
+- **Debug only:** `field-test://open?url=<link>` hands the link to `Arrivals` the way a link from another app comes (`IncomingLinksTests`, [incoming-links.md](integration/incoming-links.md)). Info.plist declares it only when `FIELD_TEST_SCHEME` is set, so a Release build never has it.
+- **Accessibility identifiers:** `page`, `bar`, `bar.back`, `bar.address`, `bar.tabs`, `welcome.glass`, `welcome.solid`, `settings`, and the field's `field`, `suggestions`, `suggestion.0`… and `field.cancel`.
+- **Signposts:** `launch.firstFrame`, `launch.fieldReady`, `page.firstPaint`, `field.open`, `field.keystroke`, `bar.collapse`, `bar.expand`, `welcome.choose`. Every interval must end, since only the first in each iteration is reported.
+
 ## Reading an Animation Hitches trace
 
 Open the trace from `build/perf/traces/` in Instruments (`open <file>.trace`).

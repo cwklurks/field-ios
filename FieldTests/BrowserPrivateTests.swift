@@ -1,7 +1,7 @@
 import Testing
 @testable import Field
 
-/// Private wired into the browser (docs/integration/private.md): its tabs
+/// Private wired into the browser (docs/PLAN.md, "Private space"): its tabs
 /// are the ones on screen only while inside, and yours are left alone.
 @MainActor struct BrowserPrivateTests {
     @Test func privateTabsAreOnScreenOnlyInside() {

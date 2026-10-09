@@ -9,7 +9,7 @@ import UIKit
 @MainActor
 enum StaleTabs {
     /// Days untouched before a tab counts as stale. Settings can offer 7,
-    /// 14 and 30 (docs/integration/tidy.md).
+    /// 14 and 30 (docs/PLAN.md, "Tidy").
     static var days: Int {
         let set = UserDefaults.standard.integer(forKey: "staleDays")
         return set > 0 ? set : Stale.defaultDays

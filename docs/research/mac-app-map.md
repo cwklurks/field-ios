@@ -1,10 +1,10 @@
 # Search for Mac: a map for the Field iPhone port
 
-Researched 2026-09-25 from ~/code/Search (upstream 87328ea plus the user's staged changes)
+Researched 2026-09-25 from a local checkout of [Search](https://github.com/driceroland/Search) (upstream 87328ea plus local, uncommitted changes)
 
 The biggest reuse is the data and policy layer: Address, Engine, History, Session, Shield, Curtain, Reader, Vault and the bookmarks model are mostly Foundation/WebKit and can be shared. Nearly all UI and Browser.swift need rewriting.
 
-**Staged changes:** the working tree has the user's staged, uncommitted changes on perf/apple-silicon. The Spotlight-style omnibox and `Palette.raised` come only from those changes (Design.swift:25,40; Omnibox.swift:54-233). Upstream had a glow ("Breath") under a plain field instead.
+**Uncommitted changes:** the checkout read had staged, uncommitted changes on perf/apple-silicon that weren't upstream. The Spotlight-style omnibox and `Palette.raised` come only from those changes (Design.swift:25,40; Omnibox.swift:54-233). Upstream had a glow ("Breath") under a plain field instead.
 
 ## 1. Design language
 
@@ -237,7 +237,7 @@ It is just the History and Downloads panels. Keep the three-way "Clear…" choic
 - The blank tab's web view is pre-built 1s after launch (Browser.swift:845-855).
 - Scroll position is reported in hundredths only, to avoid redraws (Tab.swift:721-731).
 - File writes are debounced and off the main thread.
-- Favicons (Icons.swift:20-200): the page is asked which icons it declares; the best is fetched and drawn into a 64px PNG. They are cached on disk, fresh for 7 days, with separate dark variants (`host@dark`). The staged changes add a cache of known-missing icons and one shared no-cookie session.
+- Favicons (Icons.swift:20-200): the page is asked which icons it declares; the best is fetched and drawn into a 64px PNG. They are cached on disk, fresh for 7 days, with separate dark variants (`host@dark`). The uncommitted changes add a cache of known-missing icons and one shared no-cookie session.
 - iPhone setup:
   - Set `allowsInlineMediaPlayback = true`. It defaults to false on iPhone, and without it videos can't play inside the page.
   - The user agent is built from the installed Safari.app version, which is macOS-only (Tab.swift:45-64); iOS needs a Mobile Safari-style string.
@@ -263,10 +263,10 @@ It is just the History and Downloads panels. Keep the three-way "Clear…" choic
 - The omnibox panel view (Omnibox.swift:7-235).
 - Sleep policy.
 
-### Too tangled with AppKit; rewrite
+### Built around AppKit; rewrite
 
 - Tab.swift: the tab lifecycle (lines 153-1072) is valuable but mixed with the `PageView` web view subclass and its mouse/keyboard overrides (Tab.swift:1185-1600), `NSImage`, and private APIs. Pull the lifecycle out into its own type.
-- Browser.swift (2,311 lines, a god object): lift the navigation delegate (Browser.swift:1891-2067) and omnibox logic (Browser.swift:1704-1868); rewrite the rest.
+- Browser.swift (2,311 lines) combines navigation, tab coordination and omnibox responsibilities in one type: lift the navigation delegate (Browser.swift:1891-2067) and omnibox logic (Browser.swift:1704-1868); rewrite the rest.
 - App, TabBar, Side, Fold, Stage, SiteCard, Dialogs, StatusLine, ImageMenu, Peek.
 
 ### Drop

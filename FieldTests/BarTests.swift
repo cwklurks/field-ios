@@ -38,7 +38,7 @@ struct BarTests {
 
 /// The address's press: dimmed while a finger is on it, and whole again
 /// however the finger leaves, a tap included. A tap on the pill brings the
-/// whole bar back, and its address mustn't stay dimmed (bar-polish B-01).
+/// whole bar back, and its address mustn't stay dimmed.
 @MainActor struct BarPressTests {
     @Test func aFingerDownDimsTheAddress() {
         let bar = BarContent()
@@ -58,7 +58,7 @@ struct BarTests {
 }
 
 /// The ring beside the address fades in and out with the load rather than
-/// blinking (bar-polish B-05): shown at once, and gone to nothing.
+/// blinking: shown at once, and gone to nothing.
 @MainActor struct RingTests {
     @Test func aLoadShowsItAndItsEndFadesItOut() {
         let ring = RingView()

@@ -8,7 +8,7 @@ import Testing
 /// nouns of a title, with the site's own name cut from its end, as averaged
 /// word vectors. Measured on two sets of realistic tabs, this put far fewer
 /// unrelated tabs together than whole-title sentence vectors did
-/// (docs/integration/tidy.md, "The fallback").
+/// (docs/PLAN.md, "Tidy").
 struct TidyVectorsTests {
     @Test func cutsTheSiteFromATitle() {
         #expect(TidyVectors.topic(of: "Migrating to Swift 6 | Swift.org") == "Migrating to Swift 6")

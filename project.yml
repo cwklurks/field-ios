@@ -34,8 +34,16 @@ targets:
     sources:
       - path: Field
         type: syncedFolder
-      # Shown in full in Settings › About; the root file, so it never drifts.
+      # Shown in full in Settings › About; the root files, so they never drift.
       - path: NOTICE.md
+        buildPhase: resources
+      - path: LICENSE
+        buildPhase: resources
+      - path: LICENSES/GPL-3.0.txt
+        buildPhase: resources
+      - path: LICENSES/CC-BY-SA-3.0.txt
+        buildPhase: resources
+      - path: LICENSES/Apache-2.0.txt
         buildPhase: resources
     dependencies:
       - package: FieldKit

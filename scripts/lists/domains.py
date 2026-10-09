@@ -16,7 +16,10 @@ domain lists), and from scripts/lists: protected.txt, allowlist.txt, extra.txt.
 - A protected domain (protected.txt, e.g. google.com) and a public suffix
   are never blocked whole, only named subdomains of them.
 - EasyList and EasyPrivacy exceptions for a domain blocked here come along,
-  since a WebKit list's exceptions only reach its own rules.
+  since a WebKit list's exceptions only reach its own rules. That's also why
+  they can't go in a file of their own. HaGeZi's lists are GPL-3.0, and
+  EasyList offers GPL-3.0-or-later as well as CC BY-SA, so the exceptions
+  are used under the GPL here and each domain list is GPL-3.0 as a whole.
 """
 import json
 import re

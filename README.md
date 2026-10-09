@@ -12,13 +12,14 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 
 ## What it does
 
-- **One field.** Type an address and you go there; type words and you search. It finishes addresses and your past searches from your own history. With **Search suggestions** on (Settings, under Search engine), what you type is sent to your search engine as you type, so it can suggest searches; never in Private. Address-like text and likely secrets are filtered, but these guesses cannot catch every secret or an address before it becomes recognizable. Turn it off and nothing you type is sent until you press Return.
+- **One field.** Type an address and you go there; type words and you search. It finishes addresses and your past searches from your own history. **Search suggestions** are on by default (Settings, under Search suggestions): what you type is sent to your search engine as you type, so it can suggest searches; never in Private. Address-like text and likely secrets are filtered, but these guesses cannot catch every secret or an address before it becomes recognizable. Turn them off and nothing you type is sent until you press Return.
 - **One bar that stays out of the way.** Long-press back for forward and history, swipe the pill sideways to change tabs, swipe up for the tab grid. Scrolling shrinks the pill to the host name. Edge swipes go back and forward; pull down to reload.
 - **Tabs.** A grid of cards, two across; swipe a card away to close it. A tab you are not using sleeps and costs nothing until you return to it. Your tabs come back after a quit, and Recently Closed brings one back.
 - **Blocking, before the page.** Ads and trackers are stopped at the network level inside WebKit, so there is nothing to render. The lists are EasyList, EasyPrivacy and HaGeZi's domain lists, compiled once and enforced before a request is made. Each site has an off switch; popups get a small chip, and a page the blocker stops offers "Load anyway."
 - **Clean links.** Links arrive without the wrappers: Google, Facebook, Reddit and YouTube redirects are unwrapped, tracking parameters are stripped, AMP pages return to the original, and a cross-site jump or App Store hijack you did not tap is cancelled.
 - **Saved.** Save a page from the address's long-press menu and it lands in one list with optional folders. Starred pages sit on the new-tab page; "Read later" is the saved pages you have not opened since.
 - **Capture the whole page.** Capture Page on the address's long-press saves a PDF or one tall image to share. The system screenshot's Full Page tab does the same, and opens where you were looking.
+- **Links from other apps.** Once Field is your default browser, a link tapped in Mail or Messages opens in your ordinary tabs, cleaned like any other, and never in Private. The default-browser entitlement is disabled in this project's standard build while Apple's approval is pending, so iOS uses your selected default browser for those links.
 - **Private.** A separate, always-dark space you deliberately enter. Its tabs keep nothing on disk, it locks when you leave, shows a cover in the app switcher, and is wiped when you close it. It says plainly what it cannot do.
 - **Help that stays on the phone.** Saved can suggest a folder for a page with Apple's on-device language tools.
 
@@ -27,8 +28,8 @@ It carries over the Mac app's taste: no accent colour, three motion curves, cont
 On purpose:
 
 - No account, no sync, no cloud. Tabs, history and saved pages are on your phone and nowhere else.
-- No analytics, no tracking, no crash reports sent anywhere. The only things that leave the phone are the pages you open and what they load, and, with Search suggestions on, what you type, to your search engine.
-- No sign-in wall, no start page, no suggested articles. The blank new tab is blank until you type.
+- No analytics, no tracking, no crash reports sent anywhere. The only things that leave the phone are the pages you open and what they load, and, with Search suggestions on (as they are until you turn them off), what you type, to your search engine.
+- No sign-in wall, no start page, no suggested articles. A new tab shows only the pages you starred until you type.
 - No Tor. It is planned for a later release, not this one.
 - Tidy, the tab-grouping helper, is optional and still in progress.
 
@@ -63,6 +64,18 @@ A **private tab** keeps its tabs, pictures and history in memory, in its own dat
 - **XcodeGen** builds the project from `project.yml`; there is no checked-in `.xcodeproj`.
 - `Field/` is one file per concern: the bar, the browser, tabs, blocking, the guard, Saved, Private and capture each live in a folder of their own, and `FieldKit/` holds the logic underneath.
 
-## Licence and credits
+## Licence
+
+Field's own code is under the [Mozilla Public License 2.0](LICENSE). You can read it, change it and share it; changes to MPL-covered files stay under the MPL when distributed. Separate files can use another licence, subject to the licences of any third-party material they contain.
 
 Field includes code adapted from **Search** by Office Commun, under the MIT License. It ships third-party block lists and rule tables, each with its own licence. All of it is set out in [NOTICE.md](NOTICE.md), which the app shows in full under Settings › About.
+
+The names "Field" and "Field Browser" and the app icon are not under the licence. A fork you ship needs its own; see [TRADEMARKS.md](TRADEMARKS.md).
+
+## Contributing
+
+Fixes and small, focused changes are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the tests to run and the conventions to follow. Contributions are under the MPL, like the rest of the code, and nothing that tracks people will be merged.
+
+## Security
+
+Report a vulnerability privately, not in an issue: [SECURITY.md](SECURITY.md) says how, and what counts.
