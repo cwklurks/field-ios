@@ -112,7 +112,7 @@ for key in NSPhotoLibraryUsageDescription NSLocationAlwaysUsageDescription NSLoc
 done
 ```
 
-An archive without the switch prints nothing for the first check (`codesign` shows no `com.apple.developer.web-browser`), and Settings has no Default browser section.
+An archive without the switch fails the first check with "No value at that key path", and its Settings has no Default browser section.
 
 Then on the phone, from TestFlight: Settings › Apps › Default Apps › Browser App lists Field. Choose it, tap a link in Notes and in Mail, with Field closed, in the background, and with Private locked. Each opens in a new tab of your own, and Private stays locked.
 
