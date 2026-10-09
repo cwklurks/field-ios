@@ -93,8 +93,10 @@ Field also ships HaGeZi's domain lists (Field/Resources/Lists/domains-*.json.gz)
 merged, trimmed and converted by `scripts/lists/domains.py` and `build.sh`:
 domains EasyList or EasyPrivacy already block are left out, a list's own
 domain blocks as a third party only, a few shared sites (protected.txt) are
-never blocked whole, and the result is split into lists of at most 60,000
-rules. Field's own rules (extra.txt, allowlist.txt) are added to them.
+never blocked whole, and the result is split into chunks of at most 60,000
+input rules before conversion. Relevant EasyList and EasyPrivacy exceptions
+are copied into these chunks. Field's own rules (extra.txt, allowlist.txt)
+are added to them. The converter can emit additional WebKit rules.
 
 - **HaGeZi's DNS Blocklists**: Multi PRO (`adblock/pro.txt`) and the native
   tracker lists for Apple, Amazon, Huawei, Samsung, TikTok, Xiaomi,
