@@ -1,6 +1,6 @@
 # Bar motion review
 
-Reviewed `main...HEAD` in `/Users/local-user/code/Search-iOS-wt/bar-polish`, on `polish/bar-motion`. Fixes are in **13fa058**, `fix: harden bar motion interruptions`. No push or merge.
+Reviewed `main...HEAD` on `polish/bar-motion`. Fixes are in **13fa058**, `fix: harden bar motion interruptions`. No push or merge.
 
 ## Findings
 

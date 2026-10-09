@@ -16,7 +16,7 @@ What changed from polish-2:
   - `testCancelSwipeBack` (added in e48ddef) was recorded for the first time.
 - **Coverage.** 33 recordings, all in `critic/r3/`: field, cancel by tap, and cancel by swipe in both looks, light and dark; swipe-back; scroll; grid (glass light, solid light, glass dark); bar sideways and up; cold blank; restore; Welcome; fresh-install Welcome; Settings; tone.
 - **Where things are.**
-  - Strips: `/tmp/field-review/critic/R3-*.png`, called `critic/` below.
+  - Strips: `R3-*.png` in a local scratch folder, no longer kept, called `critic/` below.
   - Videos: `critic/r3/<test>-<look>-<mode>.mp4`.
 - **A tooling correction.** `critic/gaps.sh` lists frames by `pts_time`, which these recordings leave out for many frames. So it reports "recorder gaps" that aren't there: a 2.6 s gap in `testBarSwipeUp-glass-light` had frames every 50 ms, and a 330 ms gap in the Messages release had frames every 17 ms. Use `best_effort_timestamp_time`, sorted. Some of polish-2's "recorder gap" remarks may have the same problem. `an.py`, which decodes, was unaffected.
 

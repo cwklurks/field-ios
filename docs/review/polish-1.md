@@ -7,7 +7,7 @@ Reviewed 2026-09-28 against [`docs/motion.md`](../motion.md) and PLAN.md ("Taste
 - **Driver:** `FieldPerfTests/CriticTour.swift` has one XCUITest per interaction, with touch marks on. It serves its own loopback pages: the perf article, and a "tone" page (white, then a dark hero, then white, then mid grey). Both pages carry a 2 pt magenta "heartbeat" at the left edge, so the recorder never idles.
 - **Recording:** `simctl io recordVideo --codec h264`, resampled to 60 fps. Frame numbers below are in that resampled timeline, counted from the start of the named video. Strips are tiled with each frame's number in its corner.
 - **Files:**
-  - Strips: `/tmp/field-review/critic/` (called `critic/` below).
+  - Strips: in a local scratch folder, no longer kept, called `critic/` below.
   - Videos: `critic/<test>-<look>-<mode>.mp4`.
   - Re-checks on the later build: `critic/v2/`.
 - **Two builds:**

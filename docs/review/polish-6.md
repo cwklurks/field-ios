@@ -22,7 +22,7 @@ New this round:
   - every new feature;
   - the core loop in glass light and solid dark, each compared touch by touch with its round-5 twin;
   - CNN, with blocking and with the shield off.
-- **Where things are:** strips are at `/tmp/field-review/critic/R6-*.png` (`critic/` below), and videos at `critic/r6/<test>-<look>-<mode>.mp4`.
+- **Where things are:** strips are at `R6-*.png` in a local scratch folder, no longer kept (`critic/` below), and videos at `critic/r6/<test>-<look>-<mode>.mp4`.
 
 Caveats:
 - **Unreliable timestamps.** The recorder's timestamps went non-monotonic in several videos this round:

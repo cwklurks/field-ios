@@ -9,7 +9,7 @@ Planned 2026-09-25. The research behind every decision is in [`docs/research/`](
 | Decision | Choice |
 |---|---|
 | Platform | iPhone only, iOS 26.0 minimum, built with Xcode 27 (iOS 27 SDK) |
-| Code | This repo. The Mac fork (`~/code/Search`) stays untouched; portable code is copied in with its MIT notice |
+| Code | This repo. The Mac app ([Search](https://github.com/driceroland/Search)) stays untouched; portable code is copied in with its MIT notice |
 | Audience | TestFlight for friends first, App Store later (paid developer account). No private APIs, ever |
 | Name | Field ("Field Browser" on the App Store), bundle ID `com.connork.fieldbrowser` (com.connork.field was taken), team Connor Klann (`H435XM227M`) |
 | Private mode | A separate space you deliberately enter. All hardening lives there; everyday browsing never feels locked down |
@@ -35,7 +35,7 @@ Planned 2026-09-25. The research behind every decision is in [`docs/research/`](
 
 ### Taste, carried over from the Mac
 
-The design tokens come from `~/code/Search/Sources/Search/Design.swift`; [`research/mac-app-map.md`](research/mac-app-map.md) lists them all.
+The design tokens come from Search's `Sources/Search/Design.swift`; [`research/mac-app-map.md`](research/mac-app-map.md) lists them all.
 
 - **Colour.** No accent colour. Selection is ink at 12%, pressed is ink at 5%. The Mac's grey levels (ground, ink, muted, faint, hairline, wash, raised) become `UIColor(dynamicProvider:)`.
 - **Motion.** Exactly three curves: `glide` spring(0.34, 0.82), `settle` spring(0.30, 0.86), `quick` easeOut 0.14.
@@ -216,4 +216,4 @@ These are unverified in the research; each one belongs to the milestone that nee
 ## Next steps
 
 1. **Turn on Developer Mode on your iPhone.** Xcode is already signed in to your paid team.
-2. **Set up the workflow:** in `~/code/Search-iOS`, run `/mattpocock-skills:setup-matt-pocock-skills`. Then either `/mattpocock-skills:wayfinder` for the whole build, or `/mattpocock-skills:to-spec` starting from M0–M1.
+2. **Set up the workflow:** in this repo, run `/mattpocock-skills:setup-matt-pocock-skills`. Then either `/mattpocock-skills:wayfinder` for the whole build, or `/mattpocock-skills:to-spec` starting from M0–M1.

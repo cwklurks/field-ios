@@ -14,7 +14,7 @@ What changed from polish-1:
 - **Settings test.** `testSettings` now opens Settings from the grid's gear, `tabs.settings`.
 - **Fresh-install test.** I added `testWelcomeFresh`. It runs with the app uninstalled first and no `-welcomed` argument, so Continue runs exactly as on a first launch.
 - **Where things are.**
-  - Strips: `/tmp/field-review/critic/`, called `critic/` below. Round-2 strips are `R2-*.png`.
+  - Strips: in a local scratch folder, no longer kept, called `critic/` below. Round-2 strips are `R2-*.png`.
   - Videos: `critic/<test>-<look>-<mode>.mp4`.
   - Round-1 material: `critic/round1/`.
 

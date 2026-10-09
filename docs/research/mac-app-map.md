@@ -1,6 +1,6 @@
 # Search for Mac: a map for the Field iPhone port
 
-Researched 2026-09-25 from ~/code/Search (upstream 87328ea plus the user's staged changes)
+Researched 2026-09-25 from a local checkout of [Search](https://github.com/driceroland/Search) (upstream 87328ea plus the user's staged changes)
 
 The biggest reuse is the data and policy layer: Address, Engine, History, Session, Shield, Curtain, Reader, Vault and the bookmarks model are mostly Foundation/WebKit and can be shared. Nearly all UI and Browser.swift need rewriting.
 

@@ -23,7 +23,7 @@ What's new this round:
   - three real sites for blocking (CNN, AccuWeather, Daily Mail), and `GuardTour.testShieldOff` on CNN.
 - **Comparison.** Every core-loop video was set against its round-4 twin in `critic/r4/`, touch by touch, with `an.py lifts`.
 - **Where things are.**
-  - Strips: `/tmp/field-review/critic/R5-*.png`, called `critic/` below.
+  - Strips: `R5-*.png` in a local scratch folder, no longer kept, called `critic/` below.
   - Videos: `critic/r5/<test>-<look>-<mode>.mp4`.
 - **Tooling.** `src.py` now selects frames by range and reads best-effort timestamps. It was failing on long ranges.
 - **The recorder** worked first time. There was no "Host recording is already in progress", so the simulator didn't need a reboot.

@@ -1,6 +1,6 @@
 # Motion and polish spec
 
-Frame-drop budgets (PLAN.md, "Smooth") are necessary but not enough. On 2026-09-27 the M1 build passed them and still felt laggy on the user's iPhone. Every UI change is checked against this file, on video.
+Frame-drop budgets (PLAN.md, "Smooth") are necessary but not enough. On 2026-09-27 the M1 build passed them and still felt laggy on a real iPhone. Every UI change is checked against this file, on video.
 
 ## Principles
 
@@ -31,6 +31,6 @@ Tests pass or fail frames; video shows choreography. After any UI change:
    - Reject any frame showing two copies of something, a pause after a touch, or a sequence where the motion should be continuous.
    - Count frames from the touch to the first visible change: it must be 1.
 3. Keep the FieldPerf tests green: frame-drop budgets still apply.
-4. Save before-and-after strips in the scratchpad and cite them in the report.
+4. Keep before-and-after strips and show them with the change.
 
 The simulator runs at 60 Hz and its keyboard is lighter than the phone's, so the phone gets a final check after a batch of work, not after each change.
