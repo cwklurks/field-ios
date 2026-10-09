@@ -31,6 +31,7 @@ For friends. Paste the list as it is.
 > - Load a news site or a forum, and watch the ads, banners and video slots stay away. Then turn the shield off for that site from the bar's long press and see what changes.
 > - Open a Google result, a Facebook or Reddit outbound link, and an AMP link. Each should open at the real address, with the wrapper and the tracking parameters gone.
 > - Open a page that tries to push you into the App Store, and one that opens a popup. The first should be stopped; the second should show a "Popup blocked" chip with an Open button.
+> - Tap the address, then tap outside it, and again pressing Return: the field should shrink back into the bar as the keyboard goes down, with no jump or sink after it lands. Swipe the bar sideways to change tabs and watch the new site's name appear as the page slides.
 > - Open eight or more tabs, swipe up for the grid, swipe a card away to close it, then force-quit and reopen. Your tabs should come back.
 > - Star a page to Saved, make a folder, and try Read later.
 > - Long-press the address and use Capture Page to save a long page as a PDF, and again as one image. Then press side + volume up and use Full Page in the screenshot editor.
@@ -56,7 +57,7 @@ Paste into App Store Connect's App Review Information.
 
 > Sign-in is not required. Field has no account, no sign-up and no sign-in screen; it opens straight into a browser.
 >
-> To reach the main features: type an address or a few words in the bottom bar and press Return. Swipe up on the bar for the tab grid; swipe sideways on the bar to change tabs. Long-press the back button for forward and back history; long-press the address for Save, Copy, Share, Capture Page and the per-site blocking switch. Settings is on the grid's row, and About › Built on Search shows the app's notices in full.
+> To reach the main features: type an address or a few words in the bottom bar and press Return. Swipe up on the bar for the tab grid; swipe sideways on the bar to change tabs. Long-press the back button for forward and back history; long-press the address for Save, Copy, Share, Capture Page and the per-site blocking switch. Settings is on the grid's row, and About shows the app's notices (Built on Search) and the full text of each licence (Licences).
 >
 > Ad and tracker blocking is on by default, and can be turned off for one site from the bar's long press.
 >
