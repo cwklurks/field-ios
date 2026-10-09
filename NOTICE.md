@@ -105,6 +105,15 @@ in this repository at that version.
   used here under EasyList's GPL option, so each domain list is under the
   GNU General Public License, version 3, as a whole.
 
+  HaGeZi, as author and copyright holder of these lists, has given Field
+  written permission (8 October 2026) to distribute them, in original or
+  converted form, as part of the Field app through Apple's App Store and
+  TestFlight. This covers Multi PRO and the native tracker lists above,
+  their future versions and future versions of Field. It is an additional
+  permission under section 7 of the GPLv3, for that distribution only,
+  and covers HaGeZi's own rights, not those of upstream sources the lists
+  draw on. The rest of the licence is unchanged.
+
 Field's own rules (`allowlist.txt`, `extra.txt` and `protected.txt` in
 scripts/lists) are under the Mozilla Public License 2.0 like the rest of
 its code. Where they are copied into a list (the allowlist into every list,
