@@ -3,8 +3,9 @@
 Field's own code is under the [Mozilla Public License 2.0](https://mozilla.org/MPL/2.0/),
 in LICENSE. Its [source code](https://github.com/cwklurks/field-ios) is available
 in this repository. The work below is other people's and keeps its own
-licence. The full texts of the GPL and the Apache License are in this
-repository's LICENSES/ directory.
+licence. The full texts of the GPL, the Apache License and CC BY-SA 3.0
+are in this repository's LICENSES/ directory, and with the MPL in the app
+under Settings › About.
 
 Field includes code adapted from **Search** by Office Commun
 (https://github.com/driceroland/Search), under the MIT License below. Files adapted
