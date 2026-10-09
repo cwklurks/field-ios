@@ -84,9 +84,10 @@ These work as launch arguments too, e.g. `-welcomed YES`.
 
 Launch arguments, which work in Release too, since FieldPerf runs Release:
 - `-FieldOpen <url>` (**app**) opens that URL in the tab at launch. The perf tests pass an `http://127.0.0.1:<port>/article` fixture served by the test runner, or a `data:` URL.
-- `-FieldIncoming <url>` (**app**) hands that URL to `Arrivals` at launch, as a link from another app would come, for what no app can send (a `javascript:` link). Real links are opened with `XCUIApplication.open(_:)`.
 - `-FieldSeedHistory <N>` (**kit**) fills HistoryStore with N synthetic places in memory. That process never reads or writes history.json.
 - `-welcomed NO` lands in the argument domain and hides the app's own write. So the welcome hides from state the tap sets, not from re-reading the default.
+
+Debug only, the URL scheme `field-test://open?url=<link>` (**app**) hands the link inside to `Arrivals`, as a link from another app comes, while Field is running. iOS sends `http` itself to the default browser, and `XCUIApplication.open(_:)` relaunches the app, so `IncomingLinksTests` opens this with `XCUIDevice.shared.system.open(_:)` and runs with `-configuration Debug`. Info.plist declares it under `#ifdef FIELD_TEST_SCHEME`, set only for Debug, so a Release build never has it.
 
 Animation intervals (`bar.collapse`, `bar.expand`, `field.open`, `welcome.choose`) begin with `beginAnimationInterval`, so XCTest and Instruments attach hitch data to them. Every interval must end: XCTOSSignpostMetric reports only the first matching interval per iteration.
 

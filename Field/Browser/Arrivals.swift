@@ -35,14 +35,6 @@ import os
         take(now)
     }
 
-    /// `-FieldIncoming <url>`: for the UI tests, what no app can send (a
-    /// javascript: link), through the same door as onOpenURL.
-    func receiveFromLaunchArguments() {
-        let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
-        guard let raw = arguments["FieldIncoming"] as? String, let url = URL(string: raw) else { return }
-        received(url)
-    }
-
     /// Browser.start: the session is back.
     func restored() { take(inbox.restored()) }
 
@@ -62,8 +54,12 @@ import os
             let url = due.removeFirst()
             let shield = ContentBlocking.shared.isShieldOn(for: url.host())
             switch IncomingLink.accept(url, cleaning: cleaning, shieldOn: shield) {
-            case .success(let clean): open(clean)
-            case .failure(let rejection): announce(Self.sentence(rejection))
+            case .success(let clean):
+                Self.log.notice("opening \(clean)")
+                open(clean)
+            case .failure(let rejection):
+                Self.log.notice("rejected, \(String(describing: rejection), privacy: .public)")
+                announce(Self.sentence(rejection))
             }
         }
         opening = nil

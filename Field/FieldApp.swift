@@ -60,7 +60,6 @@ struct FieldApp: App {
                 Guarded.load()
             }
             if !welcomed { browser.arrivals.welcome(showing: true) }
-            browser.arrivals.receiveFromLaunchArguments()
             if welcomed, !Baseline.isOn, !SuggestionFixture.isOn { browser.start() }
         }
     }
