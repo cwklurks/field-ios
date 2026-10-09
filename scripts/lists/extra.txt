@@ -3,3 +3,25 @@
 ! what ad-block tests and many ad loaders use.
 /ads.js^$script
 /pagead.js^$script
+! Ad hosts the domain lists leave to EasyList for its exceptions (domains.py)
+! that EasyList doesn't block well itself. A block here can't be undone by
+! EasyList's exceptions, so each is third party only and spares the sites
+! those exceptions are for.
+! Ad platforms' own ad and ad-API hosts: their portals are same-site, and X
+! is moving from twitter.com to x.com, so each spares the other.
+||ads-api.twitter.com^$third-party,domain=~x.com
+||ads.x.com^$third-party,domain=~twitter.com
+||ads.tiktok.com^$third-party
+||ads.pinterest.com^$third-party
+||gemini.yahoo.com^$third-party
+||afs.googlesyndication.com^$third-party
+! Ad servers and ad networks whose exceptions are for their own pages.
+||ad.atown.jp^$third-party
+||adfurikun.jp^$third-party
+||adnetmedia.lt^$third-party
+||infotop.jp^$third-party
+! Ad and push networks whose exceptions are for one site's player or
+! sign-up frame: blocked everywhere but there.
+||optimatic.com^$third-party,domain=~pch.com
+||worldgravity.com^$third-party,domain=~hotstar.com|~jiohotstar.com
+||mycleverpush.com^$third-party,domain=~bsdex.de|~heise.de
