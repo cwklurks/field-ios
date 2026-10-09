@@ -396,6 +396,13 @@ final class FieldSurface: UIViewController {
             }
         } else if !browser.fieldOpen, flow.phase == .field, !resting {
             handle(.cancel)
+        } else if !browser.fieldOpen, flow.phase == .field, !browser.opensInField {
+            // Resting for a focus the browser no longer wants: a link from
+            // another app took the blank tab first. The bar, and seen again
+            // if it was waiting for the keyboard.
+            resting = false
+            enter()
+            handle(.cancel)
         }
     }
 
